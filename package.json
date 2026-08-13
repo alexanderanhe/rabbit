@@ -2,11 +2,18 @@
   "name": "timer",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "packageManager": "pnpm@10.20.0",
   "scripts": {
     "build": "react-router build",
+    "deploy:build": "npm run build && npm run services:sync:prod",
     "dev": "react-router dev",
     "start": "dotenv -e .env.production -- react-router-serve ./build/server/index.js",
-    "worker:push": "tsx app/workers/push-worker.ts",
+    "worker": "dotenv -e .env -- tsx app/workers/push-worker.ts",
+    "worker:prod": "node --env-file=.env.production --import tsx app/workers/push-worker.ts",
+    "services:sync:prod": "node --env-file=.env.production scripts/run-production-services.mjs",
     "vapid:generate": "web-push generate-vapid-keys --json",
     "typecheck": "react-router typegen && tsc"
   },
@@ -35,5 +42,11 @@
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
     "vite": "^8.0.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "msgpackr-extract"
+    ]
   }
 }

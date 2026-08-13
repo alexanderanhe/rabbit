@@ -24,13 +24,27 @@ Copy the generated keys into `.env`. `VAPID_SUBJECT` must be a `mailto:` address
 
 ```bash
 pnpm dev
-pnpm worker:push
+pnpm worker
 ```
 
-In production, deploy two processes from the same image:
+For production, `.env.production` is loaded by both the web process and worker:
 
-- Web: `pnpm start`
-- Push worker: `pnpm worker:push`
+```bash
+pnpm worker:prod
+```
+
+The deployment build synchronizes the PM2 worker after compiling the app:
+
+```bash
+pnpm deploy:build
+```
+
+This recreates only the `rabbit-worker` process with the project directory as
+its explicit working directory. You can override the base name manually:
+
+```bash
+pnpm services:sync:prod -- --name rabbit-staging
+```
 
 BullMQ retains delayed jobs in Redis during restarts and processes overdue jobs when the worker reconnects.
 
