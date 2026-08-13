@@ -38,12 +38,15 @@ button { color: inherit; }
 .setup-card-simple { justify-content: space-between; }
 .quick-timer { display: grid; justify-items: start; align-content: center; flex: 1; }
 .quick-rabbit { display: none; }
+.quick-copy h1 { margin: 0 0 34px; font-family: Georgia,serif; font-size: clamp(50px,6vw,86px); font-weight: 400; line-height: .9; letter-spacing: -.05em; }
 .quick-label { margin: 0 0 10px; color: var(--orange); font-size: 10px; font-weight: 900; letter-spacing: .2em; }
-.quick-time { display: flex; align-items: flex-end; gap: 12px; padding: 0; border: 0; background: transparent; cursor: pointer; }
-.quick-time strong { font-family: Georgia,serif; font-size: clamp(130px,17vw,250px); font-weight: 400; line-height: .72; letter-spacing: -.08em; font-variant-numeric: tabular-nums; }
-.quick-time span { margin-bottom: .08em; color: var(--orange); font-size: 16px; font-weight: 900; letter-spacing: .15em; }
-.quick-caption { margin: 28px 0 0; font-family: Georgia,serif; font-size: 22px; font-style: italic; }
+.quick-picker { display: grid; grid-template-columns: 60px minmax(210px,300px) 60px; gap: 9px; width: 100%; }.quick-picker > button { border: 2px solid var(--ink); background: #fffaf0; cursor: pointer; }.quick-picker > button:first-child,.quick-picker > button:last-child { font-size: 30px; }.quick-picker > button:first-child:hover,.quick-picker > button:last-child:hover { background: var(--pink); }
+.quick-time { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; align-content: center; align-items: center; column-gap: 14px; min-height: 150px; padding: 14px 22px !important; overflow: hidden; text-align: left; box-shadow: inset 0 -5px var(--orange); }
+.quick-time strong { grid-row: 1 / 3; display: block; padding: .08em 0 .12em; font-family: Georgia,serif; font-size: clamp(86px,11vw,140px); font-weight: 400; line-height: .82; letter-spacing: -.06em; font-variant-numeric: tabular-nums; }
+.quick-time span { align-self: end; padding-bottom: 3px; color: var(--orange); font-size: 11px; font-weight: 900; letter-spacing: .14em; }
+.quick-time small { align-self: start; margin-top: 5px; font-size: 7px; font-weight: 900; letter-spacing: .08em; opacity: .55; text-transform: uppercase; }
 .quick-start { margin-bottom: 2px; }
+.quick-start > span:first-child { display: grid; gap: 2px; text-align: left; }.quick-start small { font-size: 7px; opacity: .6; }.quick-start > span:first-child:not(small) { font-size: 12px; }
 .eyebrow { margin: 0 0 20px; color: var(--orange); font-size: 12px; font-weight: 900; letter-spacing: .24em; }
 .setup-copy h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(58px, 7vw, 112px); font-weight: 400; line-height: .86; letter-spacing: -.06em; }
 .setup-copy h1 em { color: var(--orange); }
@@ -140,14 +143,12 @@ button { color: inherit; }
   .setup-card-simple { background-color: var(--cream); background-image: linear-gradient(rgba(33,29,26,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(33,29,26,.035) 1px,transparent 1px); background-size: 24px 24px; }
   .setup-nav .brand { font-size: 11px; }.setup-nav > a { background: #fffaf0; }
   .quick-timer { place-items: center; align-content: center; width: 100%; min-height: 0; text-align: center; }
-  .quick-rabbit { display: grid; place-items: center; width: min(58vw,260px); height: min(36svh,280px); margin-bottom: -28px; }
+  .quick-rabbit { display: grid; place-items: center; width: min(40vw,170px); height: min(24svh,190px); margin-bottom: -10px; }
   .quick-rabbit .showcase-sprite { width: 100%; height: 100%; filter: drop-shadow(6px 8px 0 rgba(33,29,26,.12)); }
-  .quick-label { margin-bottom: 16px; font-size: 8px; }
-  .quick-time { align-items: baseline; gap: 9px; }
-  .quick-time strong { font-size: clamp(126px,42vw,190px); line-height: .72; }
-  .quick-time span { font-size: 12px; }
-  .quick-caption { margin-top: 20px; font-size: 18px; }
-  .quick-start { flex: 0 0 auto; width: 100%; margin-top: 20px; }
+  .quick-copy { text-align: center; }.quick-copy h1 { margin-bottom: 20px; font-size: clamp(38px,11vw,54px); line-height: .92; }.quick-label { margin-bottom: 8px; font-size: 8px; }
+  .quick-picker { grid-template-columns: 52px minmax(0,1fr) 52px; gap: 7px; max-width: 390px; }
+  .quick-time { min-height: 118px; padding: 10px 16px !important; }.quick-time strong { padding-block: .08em .14em; font-size: clamp(70px,22vw,98px); line-height: .84; }.quick-time span { font-size: 9px; }.quick-time small { font-size: 6px; }
+  .quick-start { flex: 0 0 auto; width: 100%; margin-top: 18px; padding-block: 14px; }
   .time-picker { grid-template-columns: 54px minmax(130px, 1fr) 54px; }
   .start-button { width: 100%; }
   .timer-drawer-inner { padding: 14px 16px max(22px,env(safe-area-inset-bottom)); }

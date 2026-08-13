@@ -1,4 +1,5 @@
 import { Queue } from "bullmq";
+import Redis from "ioredis";
 
 export const TIMER_QUEUE_NAME = "carrot-timer-notifications";
 
@@ -9,17 +10,16 @@ declare global {
 export function getRedisConnection() {
   const value = process.env.REDIS_URL;
   if (!value) throw new Error("REDIS_URL is not configured");
-  const url = new URL(value);
-  const database = url.pathname.length > 1 ? Number(url.pathname.slice(1)) : 0;
-  return {
-    host: url.hostname,
-    port: Number(url.port || 6379),
-    username: url.username || undefined,
-    password: url.password || undefined,
-    db: Number.isFinite(database) ? database : 0,
+  const connection = new Redis(value, {
     maxRetriesPerRequest: null,
-    ...(url.protocol === "rediss:" ? { tls: {} } : {}),
-  };
+    connectTimeout: 5_000,
+    retryStrategy: (attempt: number) => Math.min(30_000, Math.max(1_000, attempt * 1_000)),
+  });
+  // BullMQ reports connection failures through Queue/Worker events. Installing
+  // this listener also prevents ioredis from printing an unbounded
+  // "Unhandled error event" stream during an outage.
+  connection.on("error", () => undefined);
+  return connection;
 }
 
 export function getTimerQueue() {

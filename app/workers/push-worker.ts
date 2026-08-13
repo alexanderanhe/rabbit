@@ -13,6 +13,37 @@ if (!publicKey || !privateKey || !subject) {
 
 webPush.setVapidDetails(subject, publicKey, privateKey);
 
+const ERROR_LOG_WINDOW_MS = 5 * 60 * 1000;
+const errorWindows = new Map<string, { lastLoggedAt: number; suppressed: number }>();
+
+function safeErrorName(error: unknown) {
+  if (error instanceof Error) return error.name || "Error";
+  return "UnknownError";
+}
+
+function logWorkerError(scope: string, error: unknown, jobId?: string) {
+  const key = `${scope}:${safeErrorName(error)}`;
+  const now = Date.now();
+  const state = errorWindows.get(key);
+  if (state && now - state.lastLoggedAt < ERROR_LOG_WINDOW_MS) {
+    state.suppressed += 1;
+    return;
+  }
+  const suppressed = state?.suppressed || 0;
+  errorWindows.set(key, { lastLoggedAt: now, suppressed: 0 });
+  // Deliberately omit stack traces and connection messages: they can contain
+  // credentials and turn a Redis outage into gigabytes of duplicate output.
+  console.error(JSON.stringify({
+    level: "error",
+    service: "rabbit-worker",
+    event: scope,
+    error: safeErrorName(error),
+    ...(jobId ? { jobId } : {}),
+    ...(suppressed ? { suppressed } : {}),
+    timestamp: new Date(now).toISOString(),
+  }));
+}
+
 const worker = new Worker<{ timerId: string }>(
   TIMER_QUEUE_NAME,
   async (job) => {
@@ -60,8 +91,8 @@ const worker = new Worker<{ timerId: string }>(
   { connection: getRedisConnection(), concurrency: Number(process.env.PUSH_WORKER_CONCURRENCY || 10) },
 );
 
-worker.on("completed", (job) => console.log(`[push-worker] completed ${job.id}`));
-worker.on("failed", (job, error) => console.error(`[push-worker] failed ${job?.id}`, error));
+worker.on("failed", (job, error) => logWorkerError("job_failed", error, job?.id));
+worker.on("error", (error) => logWorkerError("worker_error", error));
 
 async function shutdown() {
   await worker.close();
@@ -71,4 +102,4 @@ async function shutdown() {
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
-console.log(`[push-worker] listening on ${TIMER_QUEUE_NAME}`);
+console.log(JSON.stringify({ level: "info", service: "rabbit-worker", event: "ready", queue: TIMER_QUEUE_NAME, timestamp: new Date().toISOString() }));

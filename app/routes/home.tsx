@@ -408,13 +408,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="setup-nav"><div className="brand"><span className="brand-carrot">◆</span> CARROT TIMER</div><Link to="/account">Account</Link></div>
           <div className="quick-timer">
             <div className="quick-rabbit" aria-hidden="true"><div className="showcase-sprite sprite-frame-1" /></div>
-            <p className="quick-label">READY WHEN YOU ARE</p>
-            <button className="quick-time" type="button" onClick={() => setDrawerOpen(true)} aria-label={`Set timer duration, currently ${minutes} minutes`}>
-              <strong>{minutes}</strong><span>MIN</span>
-            </button>
-            <p className="quick-caption">One carrot at a time.</p>
+            <div className="quick-copy">
+              <p className="quick-label">START A TIMER</p>
+              <h1>How long do<br />you need?</h1>
+            </div>
+            <div className="quick-picker" aria-label="Timer duration">
+              <button type="button" onClick={() => setMinutes((value) => Math.max(1, value - 1))} aria-label="Subtract one minute">−</button>
+              <button className="quick-time" type="button" onClick={() => setDrawerOpen(true)} aria-label={`Edit timer duration, currently ${minutes} minutes`}>
+                <strong>{minutes}</strong><span>{minutes === 1 ? "MINUTE" : "MINUTES"}</span><small>Tap to edit</small>
+              </button>
+              <button type="button" onClick={() => setMinutes((value) => Math.min(180, value + 1))} aria-label="Add one minute">+</button>
+            </div>
           </div>
-          <button className="start-button quick-start" onClick={() => setDrawerOpen(true)}>Start <span aria-hidden="true">→</span></button>
+          <button className="start-button quick-start" onClick={() => setDrawerOpen(true)}><span><small>NEXT</small>Continue</span><span aria-hidden="true">→</span></button>
         </section>
 
         <aside className="rabbit-showcase" aria-hidden="true">
