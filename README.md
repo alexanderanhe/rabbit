@@ -1,87 +1,51 @@
-# Welcome to React Router!
+# Carrot Timer
 
-A modern, production-ready template for building full-stack React applications using React Router.
+Installable pixel-art timer with local persistence, screen wake lock, local notifications, and optional scheduled Web Push.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
-
-## Features
-
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
-
-## Getting Started
-
-### Installation
-
-Install the dependencies:
+## Local app
 
 ```bash
-npm install
+pnpm install
+pnpm dev
 ```
 
-### Development
+The timer remains fully functional without MongoDB or Redis. In that mode, timers are stored in the browser and notifications are best-effort while the PWA can still execute.
 
-Start the development server with HMR:
+## Reliable background notifications
+
+The notification backend uses MongoDB for anonymous timers and subscriptions, and Redis with BullMQ for delayed jobs.
 
 ```bash
-npm run dev
+cp .env.example .env
+pnpm vapid:generate
 ```
 
-Your application will be available at `http://localhost:5173`.
-
-## Building for Production
-
-Create a production build:
+Copy the generated keys into `.env`. `VAPID_SUBJECT` must be a `mailto:` address or an HTTPS URL you control. Start MongoDB and Redis, then run the web process and worker separately:
 
 ```bash
-npm run build
+pnpm dev
+pnpm worker:push
 ```
 
-## Deployment
+In production, deploy two processes from the same image:
 
-### Docker Deployment
+- Web: `pnpm start`
+- Push worker: `pnpm worker:push`
 
-To build and run using Docker:
+BullMQ retains delayed jobs in Redis during restarts and processes overdue jobs when the worker reconnects.
+
+## Data and security
+
+- Each anonymous timer has a separate 32-character token.
+- Only its SHA-256 hash is stored in MongoDB.
+- Push subscriptions remain server-side.
+- MongoDB removes timer documents seven days after their finish using a TTL index.
+- Pausing removes the job; resuming schedules it at the updated `endsAt`.
+- Expired Push subscriptions (`404`/`410`) are retired without retrying.
+
+## Checks
 
 ```bash
-docker build -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
+pnpm typecheck
+pnpm build
 ```
-
-The containerized application can be deployed to any platform that supports Docker, including:
-
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
-
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
-```
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
-
----
-
-Built with ❤️ using React Router.
