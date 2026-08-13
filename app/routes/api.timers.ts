@@ -4,11 +4,11 @@ import type { RemoteTimerPayload } from "../services/backend.types";
 import { getTimersCollection } from "../services/mongo.server";
 import { scheduleTimerJob } from "../services/queue.server";
 import { hashTimerToken } from "../services/timer-auth.server";
+import { getUserId } from "../services/auth.server";
 
 function isValidPayload(value: Partial<RemoteTimerPayload>): value is RemoteTimerPayload {
   return Boolean(
-    value.id && value.token && value.title && value.duration && value.endAt &&
-    value.subscription?.endpoint && value.subscription.keys?.auth && value.subscription.keys?.p256dh,
+    value.id && value.token && value.title && value.duration && value.endAt,
   );
 }
 
@@ -20,6 +20,7 @@ export async function action({ request }: Route.ActionArgs) {
   if (!Number.isFinite(endAt.getTime())) return data({ error: "Invalid endAt" }, { status: 400 });
 
   const now = new Date();
+  const userId = await getUserId(request);
   const collection = await getTimersCollection();
   await collection.updateOne(
     { timerId: payload.id },
@@ -30,12 +31,13 @@ export async function action({ request }: Route.ActionArgs) {
         duration: payload.duration,
         endAt,
         status: "running",
-        subscription: payload.subscription,
+        ...(payload.subscription ? { subscription: payload.subscription } : {}),
+        ...(userId ? { userId } : {}),
         updatedAt: now,
-        expiresAt: new Date(endAt.getTime() + 7 * 24 * 60 * 60 * 1000),
+        ...(!userId ? { expiresAt: new Date(endAt.getTime() + 7 * 24 * 60 * 60 * 1000) } : {}),
       },
       $setOnInsert: { timerId: payload.id, createdAt: now },
-      $unset: { notifiedAt: "" },
+      $unset: { notifiedAt: "", ...(userId ? { expiresAt: "" } : {}) },
     },
     { upsert: true },
   );

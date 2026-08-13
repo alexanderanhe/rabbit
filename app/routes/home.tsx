@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
+import { Drawer } from "vaul";
 import type { Route } from "./+types/home";
 import type { PushSubscriptionData, RemoteTimerPayload } from "../services/backend.types";
+import { getCurrentUser } from "../services/auth.server";
+import { getTimersCollection } from "../services/mongo.server";
 
 type GridLayout = { columns: number; rows: number };
 type StoredTimer = {
@@ -28,6 +31,21 @@ export function meta({}: Route.MetaArgs) {
       content: "A pixel-art timer where a rabbit eats time, one carrot at a time.",
     },
   ];
+}
+
+export async function loader({ request }: Route.LoaderArgs) {
+  try {
+    const user = await getCurrentUser(request);
+    if (!user) return { recentTitles: [] as string[] };
+    const { ObjectId } = await import("mongodb");
+    const timers = await (await getTimersCollection()).find(
+      { userId: new ObjectId(user.id), title: { $nin: ["", "Timer"] } },
+      { projection: { title: 1 } },
+    ).sort({ createdAt: -1 }).limit(30).toArray();
+    return { recentTitles: [...new Set(timers.map((timer) => timer.title.trim()).filter(Boolean))].slice(0, 8) };
+  } catch {
+    return { recentTitles: [] as string[] };
+  }
 }
 
 function formatTime(seconds: number) {
@@ -66,27 +84,26 @@ async function getPushSubscription(): Promise<PushSubscriptionData | null> {
 
 async function registerRemoteTimer(timer: Omit<RemoteTimerPayload, "subscription">) {
   const subscription = await getPushSubscription();
-  if (!subscription) return;
   await fetch("/api/timers", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...timer, subscription }),
+    body: JSON.stringify({ ...timer, ...(subscription ? { subscription } : {}) }),
   }).catch(() => undefined);
 }
 
-async function updateRemoteTimer(id: string, token: string, payload: { status: "running" | "paused"; endAt?: number }) {
+async function updateRemoteTimer(id: string, token: string | null, payload: { status: "running" | "paused"; endAt?: number; remaining?: number }) {
   await fetch(`/api/timers/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify(payload),
   }).catch(() => undefined);
 }
 
-async function cancelRemoteTimer(id: string, token: string) {
-  await fetch(`/api/timers/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }).catch(() => undefined);
+async function cancelRemoteTimer(id: string, token: string | null) {
+  await fetch(`/api/timers/${id}`, { method: "DELETE", headers: token ? { Authorization: `Bearer ${token}` } : {} }).catch(() => undefined);
 }
 
-export default function Home() {
+export default function Home({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
   const { timerId } = useParams();
   const [timerTitle, setTimerTitle] = useState("");
@@ -104,6 +121,8 @@ export default function Home() {
   const [wakeActive, setWakeActive] = useState(false);
   const [wakeSupported, setWakeSupported] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">("default");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [localTitles, setLocalTitles] = useState<string[]>([]);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const preferredCells = Math.max(1, grid.columns * grid.rows - 1);
   const totalCells = Math.max(1, Math.min(preferredCells, Math.floor(duration / 5)));
@@ -119,6 +138,18 @@ export default function Home() {
     setWakeSupported("wakeLock" in navigator);
     setWakeEnabled(window.localStorage.getItem(WAKE_LOCK_PREFERENCE) === "true");
     setNotificationPermission("Notification" in window ? Notification.permission : "unsupported");
+    const titles = Object.keys(window.localStorage)
+      .filter((key) => key.startsWith(TIMER_KEY_PREFIX) && !key.includes("wake-lock") && !key.includes("notified"))
+      .flatMap((key) => {
+        try {
+          const stored = JSON.parse(window.localStorage.getItem(key) || "null") as StoredTimer | null;
+          const title = stored?.title?.trim();
+          return title && title !== "Timer" ? [{ title, createdAt: stored?.createdAt || 0 }] : [];
+        } catch { return []; }
+      })
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map(({ title }) => title);
+    setLocalTitles([...new Set(titles)].slice(0, 8));
     updateGrid();
     window.addEventListener("resize", updateGrid);
     return () => window.removeEventListener("resize", updateGrid);
@@ -174,15 +205,17 @@ export default function Home() {
       return;
     }
 
-    const rawTimer = window.localStorage.getItem(`${TIMER_KEY_PREFIX}${timerId}`);
-    if (!rawTimer) {
-      navigate("/", { replace: true });
-      return;
-    }
+    const loadTimer = async () => {
+      let stored: StoredTimer;
+      const rawTimer = window.localStorage.getItem(`${TIMER_KEY_PREFIX}${timerId}`);
+      if (rawTimer) stored = JSON.parse(rawTimer) as StoredTimer;
+      else {
+        const response = await fetch(`/api/timers/${timerId}`);
+        if (!response.ok) { navigate("/", { replace: true }); return; }
+        stored = await response.json() as StoredTimer;
+      }
 
-    try {
-      const stored = JSON.parse(rawTimer) as StoredTimer;
-      const token = stored.token || nanoid(32);
+      const token = stored.token || null;
       const nextRemaining = stored.status === "running" && stored.endAt
         ? Math.max(0, Math.ceil((stored.endAt - Date.now()) / 1000))
         : stored.remaining;
@@ -198,10 +231,11 @@ export default function Home() {
       setCreatedAt(stored.createdAt);
       setStarted(true);
       setLoadedTimerId(timerId);
-    } catch {
+    };
+    loadTimer().catch(() => {
       window.localStorage.removeItem(`${TIMER_KEY_PREFIX}${timerId}`);
       navigate("/", { replace: true });
-    }
+    });
   }, [timerId, navigate]);
 
   useEffect(() => {
@@ -226,7 +260,7 @@ export default function Home() {
 
     const stored: StoredTimer = {
       id: timerId,
-      token: timerToken || undefined,
+      ...(timerToken ? { token: timerToken } : {}),
       title: timerTitle.trim() || "Timer",
       duration,
       remaining,
@@ -270,6 +304,7 @@ export default function Home() {
     activeFrame = Math.floor(secondsIntoCell) % 2 === 0 ? "sprite-frame-2" : "sprite-frame-3";
   }
   const cells = useMemo(() => Array.from({ length: totalCells }), [totalCells]);
+  const recentTitles = useMemo(() => [...new Set([...localTitles, ...loaderData.recentTitles])].slice(0, 8), [localTitles, loaderData.recentTitles]);
 
   const start = () => {
     const seconds = Math.max(1, Math.round(minutes)) * 60;
@@ -295,6 +330,7 @@ export default function Home() {
     setCreatedAt(now);
     setLoadedTimerId(id);
     setTimerToken(token);
+    setDrawerOpen(false);
     navigate(`/timer/${id}`);
     void registerRemoteTimer({ id, token, title: stored.title || "Timer", duration: seconds, endAt: stored.endAt! });
   };
@@ -305,16 +341,16 @@ export default function Home() {
       const nextEndAt = Date.now() + remaining * 1000;
       setEndAt(nextEndAt);
       setPaused(false);
-      if (timerId && timerToken) void updateRemoteTimer(timerId, timerToken, { status: "running", endAt: nextEndAt });
+      if (timerId) void updateRemoteTimer(timerId, timerToken, { status: "running", endAt: nextEndAt });
     } else {
       setPaused(true);
       setEndAt(null);
-      if (timerId && timerToken) void updateRemoteTimer(timerId, timerToken, { status: "paused" });
+      if (timerId) void updateRemoteTimer(timerId, timerToken, { status: "paused", remaining });
     }
   };
 
   const reset = () => {
-    if (timerId && timerToken && remaining > 0) void cancelRemoteTimer(timerId, timerToken);
+    if (timerId && remaining > 0) void cancelRemoteTimer(timerId, timerToken);
     setStarted(false);
     setPaused(false);
     setEndAt(null);
@@ -367,51 +403,18 @@ export default function Home() {
 
   if (!started) {
     return (
-      <main className="setup-shell">
-        <section className="setup-card">
-          <div className="brand"><span className="brand-carrot">◆</span> CARROT TIMER</div>
-          <div className="setup-copy">
-            <p className="eyebrow">A SIMPLE TIMER</p>
-            <h1>Set it. <em>Done.</em></h1>
-            <p className="intro">Name your timer, choose a duration, and let the rabbit handle the rest.</p>
-          </div>
-
-          <label className="title-input">
-            <span>TIMER NAME</span>
-            <input value={timerTitle} maxLength={48} onChange={(event) => setTimerTitle(event.target.value)} placeholder="e.g. Go to sleep" />
-          </label>
-
-          <div className="time-picker" aria-label="Timer duration">
-            <button onClick={() => setMinutes((value) => Math.max(1, value - 1))} aria-label="Subtract one minute">−</button>
-            <label>
-              <input
-                type="number"
-                min="1"
-                max="180"
-                value={minutes}
-                onChange={(event) => setMinutes(Math.min(180, Math.max(1, Number(event.target.value) || 1)))}
-              />
-              <span>MINUTES</span>
-            </label>
-            <button onClick={() => setMinutes((value) => Math.min(180, value + 1))} aria-label="Add one minute">+</button>
-          </div>
-
-          <button className="start-button" onClick={start}>
-            Start timer <span aria-hidden="true">→</span>
-          </button>
-          <p className="hint">The route adapts automatically to your screen.</p>
-          <div className="focus-options">
-            <button type="button" className={wakeEnabled ? "enabled" : ""} onClick={toggleWakeLock} disabled={!wakeSupported}>
-              <span aria-hidden="true">☀</span>
-              <strong>Keep screen on</strong>
-              <small>{!wakeSupported ? "Unavailable" : wakeEnabled ? "Enabled" : "Disabled"}</small>
+      <main className="setup-shell setup-shell-simple">
+        <section className="setup-card setup-card-simple">
+          <div className="setup-nav"><div className="brand"><span className="brand-carrot">◆</span> CARROT TIMER</div><Link to="/account">Account</Link></div>
+          <div className="quick-timer">
+            <div className="quick-rabbit" aria-hidden="true"><div className="showcase-sprite sprite-frame-1" /></div>
+            <p className="quick-label">READY WHEN YOU ARE</p>
+            <button className="quick-time" type="button" onClick={() => setDrawerOpen(true)} aria-label={`Set timer duration, currently ${minutes} minutes`}>
+              <strong>{minutes}</strong><span>MIN</span>
             </button>
-            <button type="button" className={notificationPermission === "granted" ? "enabled" : ""} onClick={enableNotifications} disabled={notificationPermission === "denied" || notificationPermission === "unsupported"}>
-              <span aria-hidden="true">♢</span>
-              <strong>Notify me</strong>
-              <small>{notificationPermission === "granted" ? "Enabled" : notificationPermission === "denied" ? "Blocked" : notificationPermission === "unsupported" ? "Unavailable" : "Enable"}</small>
-            </button>
+            <p className="quick-caption">One carrot at a time.</p>
           </div>
+          <button className="start-button quick-start" onClick={() => setDrawerOpen(true)}>Start <span aria-hidden="true">→</span></button>
         </section>
 
         <aside className="rabbit-showcase" aria-hidden="true">
@@ -419,6 +422,34 @@ export default function Home() {
           <div className="showcase-sprite sprite-frame-1" />
           <p>ONE BITE<br />AT A TIME.</p>
         </aside>
+
+        <Drawer.Root open={drawerOpen} onOpenChange={setDrawerOpen} shouldScaleBackground={false}>
+          <Drawer.Portal>
+            <Drawer.Overlay className="timer-drawer-overlay" />
+            <Drawer.Content className="timer-drawer-content">
+              <div className="drawer-handle" aria-hidden="true" />
+              <div className="timer-drawer-inner">
+                <div className="drawer-heading"><div><p>NEW TIMER</p><Drawer.Title>Ready to run?</Drawer.Title></div><Drawer.Close className="drawer-close" aria-label="Close timer settings">×</Drawer.Close></div>
+                <Drawer.Description className="drawer-description">Adjust the time or give this timer a name.</Drawer.Description>
+
+                <div className="time-picker drawer-time-picker" aria-label="Timer duration">
+                  <button onClick={() => setMinutes((value) => Math.max(1, value - 1))} aria-label="Subtract one minute">−</button>
+                  <label><input type="number" min="1" max="180" value={minutes} onChange={(event) => setMinutes(Math.min(180, Math.max(1, Number(event.target.value) || 1)))} /><span>MINUTES</span></label>
+                  <button onClick={() => setMinutes((value) => Math.min(180, value + 1))} aria-label="Add one minute">+</button>
+                </div>
+
+                <label className="title-input drawer-title-input"><span>TIMER NAME <i>OPTIONAL</i></span><input value={timerTitle} maxLength={48} onChange={(event) => setTimerTitle(event.target.value)} placeholder="e.g. Go to sleep" /></label>
+                {recentTitles.length > 0 && <div className="recent-titles"><span>USE AGAIN</span><div>{recentTitles.map((title) => <button type="button" key={title} className={timerTitle === title ? "selected" : ""} onClick={() => setTimerTitle(title)}>{title}</button>)}</div></div>}
+
+                <div className="focus-options drawer-options">
+                  <button type="button" className={wakeEnabled ? "enabled" : ""} onClick={toggleWakeLock} disabled={!wakeSupported}><span aria-hidden="true">☀</span><strong>Keep screen on</strong><small>{!wakeSupported ? "Unavailable" : wakeEnabled ? "Enabled" : "Disabled"}</small></button>
+                  <button type="button" className={notificationPermission === "granted" ? "enabled" : ""} onClick={enableNotifications} disabled={notificationPermission === "denied" || notificationPermission === "unsupported"}><span aria-hidden="true">♢</span><strong>Notify me</strong><small>{notificationPermission === "granted" ? "Enabled" : notificationPermission === "denied" ? "Blocked" : notificationPermission === "unsupported" ? "Unavailable" : "Enable"}</small></button>
+                </div>
+                <button className="start-button drawer-start" onClick={start}>Start {minutes} min timer <span aria-hidden="true">→</span></button>
+              </div>
+            </Drawer.Content>
+          </Drawer.Portal>
+        </Drawer.Root>
       </main>
     );
   }

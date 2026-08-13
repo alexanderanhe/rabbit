@@ -25,6 +25,11 @@ const worker = new Worker<{ timerId: string }>(
       return;
     }
 
+    if (!timer.subscription) {
+      await collection.updateOne({ timerId: timer.timerId }, { $set: { status: "finished", updatedAt: new Date() } });
+      return;
+    }
+
     const payload = JSON.stringify({
       title: timer.title || "Timer",
       body: "Time’s up!",

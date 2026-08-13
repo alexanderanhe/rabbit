@@ -1,4 +1,4 @@
-const CACHE_NAME = "carrot-timer-v12";
+const CACHE_NAME = "carrot-timer-v13";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
