@@ -33,8 +33,6 @@ pm2 start npm \
   --cwd "$APP_DIR" \
   --time \
   --restart-delay 30000 \
-  --max-restarts 10 \
-  --min-uptime 30000 \
   --output "$WORKER_OUT_LOG" \
   --error "$WORKER_ERROR_LOG" \
   --kill-timeout 300000 \
