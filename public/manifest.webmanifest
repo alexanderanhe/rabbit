@@ -1,6 +1,6 @@
 {
-  "name": "Carrot Timer",
-  "short_name": "Carrot",
+  "name": "Rabbit Timer",
+  "short_name": "Rabbit",
   "description": "A simple timer where a rabbit eats time, one carrot at a time.",
   "id": "/",
   "start_url": "/",

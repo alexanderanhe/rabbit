@@ -1,4 +1,4 @@
-# Carrot Timer
+# Rabbit Timer
 
 Installable pixel-art timer with local persistence, screen wake lock, local notifications, and optional scheduled Web Push.
 

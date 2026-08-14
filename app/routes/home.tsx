@@ -25,7 +25,7 @@ const WAKE_LOCK_PREFERENCE = "carrot-timer:wake-lock";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Carrot Timer" },
+    { title: "Rabbit Timer" },
     {
       name: "description",
       content: "A pixel-art timer where a rabbit eats time, one carrot at a time.",
@@ -304,7 +304,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     activeFrame = Math.floor(secondsIntoCell) % 2 === 0 ? "sprite-frame-2" : "sprite-frame-3";
   }
   const cells = useMemo(() => Array.from({ length: totalCells }), [totalCells]);
-  const recentTitles = useMemo(() => [...new Set([...localTitles, ...loaderData.recentTitles])].slice(0, 8), [localTitles, loaderData.recentTitles]);
+  const remoteTitles = loaderData?.recentTitles ?? [];
+  const recentTitles = useMemo(() => [...new Set([...localTitles, ...remoteTitles])].slice(0, 8), [localTitles, remoteTitles]);
 
   const start = () => {
     const seconds = Math.max(1, Math.round(minutes)) * 60;
@@ -405,7 +406,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return (
       <main className="setup-shell setup-shell-simple">
         <section className="setup-card setup-card-simple">
-          <div className="setup-nav"><div className="brand"><span className="brand-carrot">◆</span> CARROT TIMER</div><Link to="/account">Account</Link></div>
+          <div className="setup-nav"><div className="brand"><span className="brand-carrot">◆</span> RABBIT TIMER</div><Link to="/account">Account</Link></div>
           <div className="quick-timer">
             <div className="quick-rabbit" aria-hidden="true"><div className="showcase-sprite sprite-frame-1" /></div>
             <div className="quick-copy">

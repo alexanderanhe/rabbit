@@ -12,7 +12,7 @@ type AuthStep = "start" | "register-code" | "register-password" | "login-code";
 type ActionResult = { error?: string; step: AuthStep; mode?: "login" | "register"; email?: string; name?: string; maskedEmail?: string; challengeId?: string; completionToken?: string };
 
 export function meta() {
-  return [{ title: "Account · Carrot Timer" }];
+  return [{ title: "Account · Rabbit Timer" }];
 }
 
 function maskEmail(email: string) {
@@ -155,7 +155,7 @@ export default function Account({ loaderData, actionData }: Route.ComponentProps
     const step = result?.step || "start";
     return <main className="account-shell"><section className="account-card auth-card">
       <Link className="account-back" to="/">← Back to timer</Link>
-      <p className="account-kicker">CARROT TIMER ACCOUNT</p>
+      <p className="account-kicker">RABBIT TIMER ACCOUNT</p>
       <h1>{step === "register-password" ? <>One last<br /><em>step.</em></> : step.includes("code") ? <>Check your<br /><em>inbox.</em></> : <>Keep every<br /><em>timer close.</em></>}</h1>
 
       {step === "register-code" && result ? <CodeForm actionData={result} intent="register-verify" /> :

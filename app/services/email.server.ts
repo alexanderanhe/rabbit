@@ -12,8 +12,8 @@ function getClient() {
 export async function sendVerificationCode(params: { to: string; code: string; purpose: "register" | "login" }) {
   const from = process.env.RESEND_FROM_EMAIL;
   if (!from) throw new Error("RESEND_FROM_EMAIL is not configured");
-  const subject = params.purpose === "register" ? "Verify your Carrot Timer email" : "Your Carrot Timer sign-in code";
-  const intro = params.purpose === "register" ? "Finish creating your Carrot Timer account" : "Finish signing in to Carrot Timer";
+  const subject = params.purpose === "register" ? "Verify your Rabbit Timer email" : "Your Rabbit Timer sign-in code";
+  const intro = params.purpose === "register" ? "Finish creating your Rabbit Timer account" : "Finish signing in to Rabbit Timer";
   const { error } = await getClient().emails.send({
     from,
     to: params.to,

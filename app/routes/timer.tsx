@@ -1,1 +1,1 @@
-export { default, meta } from "./home";
+export { default, loader, meta } from "./home";
