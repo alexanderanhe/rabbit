@@ -1,9 +1,8 @@
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { ObjectId } from "mongodb";
-import { createSessionStorage, redirect } from "react-router";
-import { nanoid } from "nanoid";
-import { getSessionsCollection, getUsersCollection } from "./mongo.server";
+import { createCookieSessionStorage, redirect } from "react-router";
+import { getUsersCollection } from "./mongo.server";
 
 const scrypt = promisify(scryptCallback);
 // Browsers commonly cap persistent cookies at roughly 400 days. Use that full
@@ -13,30 +12,15 @@ if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
   throw new Error("SESSION_SECRET is required in production");
 }
 
-const sessionStorage = createSessionStorage<{ userId: string }>({
+const sessionStorage = createCookieSessionStorage<{ userId: string }>({
   cookie: {
-    name: "__rabbit_session",
+    name: "__rabbit_auth",
     httpOnly: true,
     maxAge: SESSION_MAX_AGE,
     path: "/",
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     secrets: [process.env.SESSION_SECRET || "development-only-change-me"],
-  },
-  async createData(data, expires) {
-    const sessionId = nanoid(40);
-    await (await getSessionsCollection()).insertOne({ sessionId, data, expiresAt: expires || new Date(Date.now() + SESSION_MAX_AGE * 1000) });
-    return sessionId;
-  },
-  async readData(sessionId) {
-    const session = await (await getSessionsCollection()).findOne({ sessionId, expiresAt: { $gt: new Date() } });
-    return session?.data || null;
-  },
-  async updateData(sessionId, data, expires) {
-    await (await getSessionsCollection()).updateOne({ sessionId }, { $set: { data, expiresAt: expires || new Date(Date.now() + SESSION_MAX_AGE * 1000) } });
-  },
-  async deleteData(sessionId) {
-    await (await getSessionsCollection()).deleteOne({ sessionId });
   },
 });
 

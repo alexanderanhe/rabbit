@@ -11,7 +11,7 @@
     "deploy:build": "npm run build && npm run services:sync:prod",
     "dev": "react-router dev",
     "start": "dotenv -e .env.production -- react-router-serve ./build/server/index.js",
-    "test": "node --import tsx --test app/services/health.server.test.ts",
+    "test": "node --import tsx --test app/services/*.test.ts",
     "worker": "dotenv -e .env -- tsx app/workers/push-worker.ts",
     "worker:prod": "node --env-file=.env.production --import tsx app/workers/push-worker.ts",
     "services:sync:prod": "node --env-file=.env.production scripts/run-production-services.mjs",
