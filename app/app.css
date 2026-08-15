@@ -32,6 +32,13 @@ button { color: inherit; }
 .style-gallery-blue-mood .style-gallery-hero img,.style-gallery-green-sleep .style-gallery-hero img { image-rendering: pixelated; }
 .style-gallery-animated-sprite { background-position: center; background-repeat: no-repeat; image-rendering: pixelated; filter: drop-shadow(12px 16px 0 rgba(33,29,26,.14)); }
 .rabbit-eating-preview { width: min(54vw,580px); max-height: 68svh; aspect-ratio: 580 / 700; background-image: url("/images/sprites/rabbit-eat-1.png"); background-size: contain; animation: gallery-rabbit-eating 1.2s steps(1,end) infinite; }
+.animal-eating-preview { width: min(48vw,543px); height: min(68svh,724px); background-position: center; background-size: contain; animation: gallery-animal-eating 1.2s steps(1,end) infinite; }
+.animal-eating-preview.bear-honey { --animal-eat-1: url("/images/sprites/bear-2.webp"); --animal-eat-2: url("/images/sprites/bear-3.webp"); background-image: var(--animal-eat-1); }
+.animal-eating-preview.mouse-cheese { --animal-eat-1: url("/images/sprites/mouse-2.webp"); --animal-eat-2: url("/images/sprites/mouse-3.webp"); background-image: var(--animal-eat-1); }
+.leo-gallery-preview { position: relative; width: min(82vw,900px); aspect-ratio: 16 / 9; filter: drop-shadow(12px 16px 0 rgba(33,29,26,.14)); }
+.leo-gallery-field { position: absolute; inset: 0; background: url("/images/sprites/field-bg-far.webp") center -12% / auto 90% no-repeat; image-rendering: pixelated; }
+.leo-gallery-field::after { content: ""; position: absolute; inset: 0; background: url("/images/sprites/field-bg-principal.webp") center top / auto 133% no-repeat; }
+.leo-gallery-player { position: absolute; bottom: 4%; left: 7%; width: min(32%,280px); aspect-ratio: 1; background: url("/images/sprites/leo-run-1.webp") center / contain no-repeat; image-rendering: pixelated; animation: leo-run 2s steps(1,end) infinite,leo-gallery-cross 5s ease-in-out infinite alternate; }
 .rabbit-painting-preview { height: min(68svh,700px); aspect-ratio: 384 / 1024; background-image: url("/images/sprites/2212930E-A0C9-4214-B4A0-47D163A34245.PNG"); background-size: 400% 100%; background-position: 0 0; animation: gallery-rabbit-painting 1.2s steps(1,end) infinite; }
 .mood-sprite-preview { position: relative; width: min(88vw,78svh,900px); aspect-ratio: 1; filter: drop-shadow(12px 16px 0 rgba(33,29,26,.14)); }
 .mood-sprite-preview > img { width: 100%; height: 100%; filter: none; }
@@ -59,9 +66,10 @@ button { color: inherit; }
 .running-menu .gallery-dropdown a em { overflow: hidden; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 .running-menu .gallery-dropdown a time { color: var(--orange); font-size: 13px; font-weight: 900; letter-spacing: .06em; line-height: 1; font-variant-numeric: tabular-nums; }
 .running-menu .gallery-dropdown a:hover time { color: var(--ink); }
-.style-gallery-picker { position: fixed; z-index: 9; right: 0; bottom: max(22px,env(safe-area-inset-bottom)); left: 0; display: flex; align-items: flex-start; justify-content: center; gap: 10px; width: max-content; max-width: calc(100vw - 24px); margin: auto; padding: 9px; border: 3px solid var(--ink); background: #fffaf0; box-shadow: 7px 7px 0 var(--ink); }
+.style-gallery-picker { position: fixed; z-index: 9; right: 0; bottom: max(22px,env(safe-area-inset-bottom)); left: 0; display: flex; align-items: flex-start; justify-content: flex-start; gap: 10px; width: max-content; max-width: calc(100vw - 24px); margin: auto; padding: 9px; overflow-x: auto; overflow-y: hidden; border: 3px solid var(--ink); background: #fffaf0; box-shadow: 7px 7px 0 var(--ink); overscroll-behavior-x: contain; scroll-behavior: smooth; scroll-snap-type: x proximity; scrollbar-width: none; }
+.style-gallery-picker::-webkit-scrollbar { display: none; }
 .style-gallery-picker:focus-visible { outline: 4px solid var(--orange); outline-offset: 5px; }
-.style-choice-group { display: grid; justify-items: center; gap: 6px; padding: 5px; border: 3px solid transparent; }
+.style-choice-group { display: grid; flex: 0 0 auto; justify-items: center; gap: 6px; padding: 5px; border: 3px solid transparent; scroll-snap-align: center; }
 .style-choice-group.is-selected { border-color: var(--ink); background: #ffe2a3; }
 .style-choice-group button { position: relative; display: grid; place-items: center; padding: 3px; overflow: hidden; border: 2px solid var(--ink); background: var(--pink); cursor: pointer; }
 .style-choice-group button:hover { transform: translateY(-3px); }
@@ -70,16 +78,24 @@ button { color: inherit; }
 .style-choice-variants button { width: clamp(24px,2.6vw,32px); aspect-ratio: 1; padding: 1px; }
 .style-choice-variants button.is-selected::after { content: ""; position: absolute; inset: 1px; border: 2px solid var(--orange); pointer-events: none; }
 .style-choice-group img { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.animal-style-thumbnail { display: block; width: 100%; height: 100%; background-position: 0 0; background-repeat: no-repeat; image-rendering: pixelated; }
+.animal-style-thumbnail.rabbit-carrot { background: url("/images/sprites/rabbit-jump.png") center / contain no-repeat; }
+.animal-style-thumbnail.bear-honey { background: url("/images/sprites/bear-1.webp") center / contain no-repeat; }
+.animal-style-thumbnail.mouse-cheese { background: url("/images/sprites/mouse-1.webp") center / contain no-repeat; }
 .style-choice-more { background: var(--ink) !important; color: #fff; font-size: 9px; font-weight: 900; }
 .style-choice-group button[title="Blue Mood"] { background: #168edc; }
 .style-choice-group button[title="Green Sleep"] { background: #78caa5; }
 .style-choice-group button[title="Rabbit Painter"] { background: #f2c75c; }
+.style-choice-group button[title="Bear & Honey"] { background: #e8ad52; }
+.style-choice-group button[title="Mouse & Cheese"] { background: #8fcfc5; }
+.style-choice-group button[title="Leo Soccer"] { background: #72c8f2; }
 
 @media (max-width: 620px) {
   .style-gallery-topbar { padding-right: 16px; padding-left: 16px; }
   .style-gallery-hero { inset: 70px 2vw 130px; }
   .style-gallery-hero img { width: 96vw; height: 68svh; }
   .rabbit-eating-preview { width: min(88vw,480px); }
+  .animal-eating-preview { width: min(72vw,390px); }
   .rabbit-painting-preview { height: min(62svh,610px); }
   .style-gallery-picker { bottom: max(12px,env(safe-area-inset-bottom)); gap: 2px; padding: 4px; box-shadow: 5px 5px 0 var(--ink); }
   .style-choice-group { gap: 4px; padding: 3px; border-width: 2px; }
@@ -90,6 +106,10 @@ button { color: inherit; }
 @keyframes gallery-rabbit-eating {
   0%,49.999% { background-image: url("/images/sprites/rabbit-eat-1.png"); }
   50%,100% { background-image: url("/images/sprites/rabbit-eat-2.png"); }
+}
+@keyframes gallery-animal-eating {
+  0%,49.999% { background-image: var(--animal-eat-1); }
+  50%,100% { background-image: var(--animal-eat-2); }
 }
 @keyframes gallery-rabbit-painting {
   0%,49.999% { background-position: 0 0; }
@@ -114,7 +134,7 @@ button { color: inherit; }
   85.001%,100% { background-position: 0 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .rabbit-eating-preview,.rabbit-painting-preview,.mood-expression-sprite { animation: none; }
+  .rabbit-eating-preview,.animal-eating-preview,.rabbit-painting-preview,.mood-expression-sprite,.leo-gallery-player { animation: none; }
 }
 
 .setup-shell {
@@ -199,8 +219,21 @@ button { color: inherit; }
 .sprite-frame-2 { background-image: url("/images/sprites/rabbit-eat-1.png"); }
 .sprite-frame-3 { background-image: url("/images/sprites/rabbit-eat-2.png"); }
 .sprite-frame-4 { background-image: url("/images/sprites/rabbit-carrot.png"); }
+.timer-style-bear-honey .grid-sprite,.timer-style-mouse-cheese .grid-sprite { background-position: center; background-size: contain; }
+.timer-style-bear-honey .sprite-frame-1 { background-image: url("/images/sprites/bear-1.webp"); }
+.timer-style-bear-honey .sprite-frame-2 { background-image: url("/images/sprites/bear-2.webp"); }
+.timer-style-bear-honey .sprite-frame-3 { background-image: url("/images/sprites/bear-3.webp"); }
+.timer-style-bear-honey .sprite-frame-4 { background-image: url("/images/sprites/bear-4.webp"); transform: translateY(9%); }
+.timer-style-mouse-cheese .sprite-frame-1 { background-image: url("/images/sprites/mouse-1.webp"); }
+.timer-style-mouse-cheese .sprite-frame-2 { background-image: url("/images/sprites/mouse-2.webp"); }
+.timer-style-mouse-cheese .sprite-frame-3 { background-image: url("/images/sprites/mouse-3.webp"); }
+.timer-style-mouse-cheese .sprite-frame-4 { background-image: url("/images/sprites/mouse-4.webp"); }
 
 .timer-shell { min-height: 100svh; display: flex; flex-direction: column; background-color: var(--cream); background-image: linear-gradient(rgba(33,29,26,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(33,29,26,.035) 1px, transparent 1px); background-size: 24px 24px; }
+.timer-style-bear-honey { background-color: #f4c56d; }
+.timer-style-mouse-cheese { background-color: #a8ddd4; }
+.timer-style-bear-honey .timer-header { background: #fff0c9; }
+.timer-style-mouse-cheese .timer-header { background: #e5f7f3; }
 .timer-header { min-height: 96px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 22px; padding: 14px clamp(18px, 3vw, 48px); border-bottom: 3px solid var(--ink); background: #fffaf0; }
 .timer-title { display: flex; align-items: center; }
 .timer-title strong, .timer-title small { display: block; }
@@ -221,8 +254,13 @@ button { color: inherit; }
 .grid-sprite.eaten { opacity: .08; background-image: none; position: relative; }
 .grid-sprite.eaten::after { content: "·"; position: absolute; inset: 0; display: grid; place-items: center; color: var(--green); font-size: 18px; }
 .goal-cell { position: relative; width: 100%; height: 100%; min-height: 0; background: url("/images/sprites/finish-line.webp") center / contain no-repeat; image-rendering: pixelated; filter: drop-shadow(2px 3px 0 rgba(33,29,26,.12)); transform: translateY(10%); }
+.timer-style-bear-honey .goal-cell,.timer-style-mouse-cheese .goal-cell { background-position: center; background-repeat: no-repeat; background-size: contain; }
+.timer-style-bear-honey .goal-cell { background-image: url("/images/sprites/bear-goal.webp"); }
+.timer-style-mouse-cheese .goal-cell { background-image: url("/images/sprites/mouse-goal.webp"); }
 .celebration-sprite { position: absolute; inset: 0; z-index: 2; background: url("/images/sprites/bunny-celebrate-1.webp") center / contain no-repeat; image-rendering: pixelated; animation: celebrate 2s steps(1, end) infinite, celebration-pop .45s ease-out both; }
 .is-finished .carrot-grid { background: var(--pink); }
+.timer-style-bear-honey.is-finished .carrot-grid { background: #e8ad52; }
+.timer-style-mouse-cheese.is-finished .carrot-grid { background: #8fcfc5; }
 .blue-mood-shell { position: relative; display: grid; place-items: center; width: 100%; min-height: 100svh; overflow: hidden; background: radial-gradient(circle at 50% 42%,#49baff 0,#168edc 54%,#0564b5 100%); }
 .blue-mood-shell.green-sleep-shell { background: radial-gradient(circle at 50% 42%,#c7f4dc 0,#78caa5 58%,#3a9474 100%); }
 .blue-mood-stage { position: relative; width: min(100vw,100svh); aspect-ratio: 1; flex: none; }
@@ -235,6 +273,25 @@ button { color: inherit; }
 .blue-mood-face.gesture-happy .eye { width: 25%; height: 58%; aspect-ratio: auto; border-radius: 50% 50% 28% 28%; }.blue-mood-face.gesture-stars .eye { border-radius: 0; background: transparent; }.blue-mood-face.gesture-stars .eye svg { display: block; }.blue-mood-face.gesture-sleep .eye { top: 20%; width: 28%; height: 38%; aspect-ratio: auto; border: solid #fff; border-width: 0 0 clamp(4px,.7vmin,9px); border-radius: 0 0 50% 50%; background: transparent; }.blue-mood-face.gesture-sleep .mouth { width: 17%; height: 18%; }.blue-mood-face .sleep-symbols { position: absolute; top: -10%; right: -3%; display: none; color: #9ef0ca; font-family: Georgia,serif; font-size: clamp(20px,4vmin,50px); font-weight: 700; transform: rotate(-9deg); }.blue-mood-face .sleep-symbols em { position: absolute; bottom: 72%; left: 85%; font-size: .62em; font-style: normal; }.blue-mood-face.gesture-sleep .sleep-symbols { display: block; }.blue-mood-face.gesture-awake .eye { animation: wake-pop .5s cubic-bezier(.2,1.8,.4,1) both; }
 .blue-mood-display time { position: absolute; top: 67%; font-family: "Courier New",monospace; font-size: clamp(24px,4.8vmin,60px); font-weight: 700; line-height: 1; letter-spacing: -.07em; text-shadow: 0 0 14px rgba(255,255,255,.2); font-variant-numeric: tabular-nums; }.blue-mood-display strong { position: absolute; bottom: 15%; max-width: 58%; overflow: hidden; color: #55c8ff; font-size: clamp(6px,1vmin,13px); letter-spacing: .2em; text-align: center; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .blue-mood-controls { position: fixed; z-index: 3; right: max(14px,env(safe-area-inset-right)); bottom: max(14px,env(safe-area-inset-bottom)); display: flex; gap: 7px; padding: 7px; border: 1px solid rgba(255,255,255,.4); border-radius: 15px; background: rgba(0,45,92,.58); box-shadow: 0 8px 30px rgba(0,30,70,.28); backdrop-filter: blur(12px); }.blue-mood-controls button { min-width: 42px; min-height: 38px; padding: 0 13px; border: 1px solid rgba(255,255,255,.55); border-radius: 9px; background: rgba(255,255,255,.12); color: #fff; font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }.blue-mood-controls button.active { background: #ffe12b; color: #063d70; }.blue-mood-controls button:disabled { opacity: .38; cursor: not-allowed; }
+.leo-timer-shell { position: relative; width: 100%; min-height: 100svh; overflow: hidden; background: linear-gradient(#52bdf0 0 61%,#38a93d 61% 100%); }
+.leo-timer-shell::after { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.2) 1px,transparent 1px); background-size: 8px 8px; pointer-events: none; }
+.leo-field-far,.leo-field-principal { position: absolute; inset: 0; width: 100%; height: 100svh; background-repeat: no-repeat; image-rendering: pixelated; transition: background-position 1s linear; will-change: background-position; }
+.leo-field-far { z-index: 0; background-image: url("/images/sprites/field-bg-far.webp"); background-position: var(--leo-far-position) -7svh; background-size: auto 80%; }
+.leo-field-principal { z-index: 1; background-image: url("/images/sprites/field-bg-principal.webp"); background-position: var(--leo-near-position) top; background-size: auto 133%; filter: drop-shadow(0 8px 0 rgba(21,60,29,.18)); }
+.leo-player-track { position: absolute; z-index: 2; right: 1.5vw; bottom: clamp(105px,18svh,180px); left: 1.5vw; height: min(44svh,430px); pointer-events: none; }
+.leo-running-player { position: absolute; z-index: 1; bottom: 0; left: var(--leo-left); width: clamp(130px,22vmin,250px); aspect-ratio: 1; background: url("/images/sprites/leo-run-1.webp") center / contain no-repeat; image-rendering: pixelated; filter: drop-shadow(4px 6px 0 rgba(24,55,82,.2)); transform: translateX(var(--leo-offset)); transition: left 1s linear,transform 1s linear; animation: leo-run 2s steps(1,end) infinite; }
+.leo-timer-shell.is-paused .leo-running-player { animation-play-state: paused; transition: none; }.leo-timer-shell.is-paused .leo-field-far,.leo-timer-shell.is-paused .leo-field-principal { transition: none; }
+.leo-status { position: fixed; z-index: 5; top: max(16px,env(safe-area-inset-top)); left: max(16px,env(safe-area-inset-left)); display: grid; gap: 4px; min-width: min(290px,calc(100vw - 32px)); padding: 12px 16px; border: 3px solid #153a27; background: rgba(255,255,255,.9); box-shadow: 6px 6px 0 #153a27; }.leo-status strong { overflow: hidden; font-size: 9px; letter-spacing: .12em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }.leo-status time { color: #087640; font-size: clamp(34px,5vw,62px); font-weight: 900; line-height: .9; font-variant-numeric: tabular-nums; }.leo-status small { color: #e54034; font-size: 7px; font-weight: 900; letter-spacing: .1em; }
+.leo-audio-toggle { position: fixed; z-index: 6; top: max(16px,env(safe-area-inset-top)); right: max(16px,env(safe-area-inset-right)); display: grid; place-items: center; width: 52px; aspect-ratio: 1; padding: 0; border: 3px solid #153a27; border-radius: 0; background: #fff; box-shadow: 5px 5px 0 #153a27; font-size: 23px; line-height: 1; cursor: pointer; }.leo-audio-toggle.is-active { background: #ffe12b; }.leo-audio-toggle:active { transform: translate(3px,3px); box-shadow: 2px 2px 0 #153a27; }
+.leo-controls { background: rgba(4,74,42,.78); }
+.leo-sequence-player { position: absolute; z-index: 1; bottom: 0; left: var(--leo-left); width: clamp(150px,25vmin,280px); aspect-ratio: 1; background-position: center; background-repeat: no-repeat; background-size: contain; image-rendering: pixelated; filter: drop-shadow(5px 7px 0 rgba(24,55,82,.2)); transform: translateX(var(--leo-offset)); }
+.leo-kick-player { background-image: url("/images/sprites/leo-kick.webp"); }
+.leo-celebration { background-image: url("/images/sprites/leo-celebrate-1.webp"); animation: leo-celebrate 2s steps(1,end) infinite; }
+.leo-sequence-goal { position: absolute; right: 0; bottom: 0; width: clamp(160px,27vmin,300px); aspect-ratio: 1; background: url("/images/sprites/leo-goal-empty.webp") center / contain no-repeat; image-rendering: pixelated; filter: drop-shadow(5px 7px 0 rgba(24,55,82,.2)); transform: translateX(var(--leo-goal-enter)); transition: transform 1s linear; }
+.leo-sequence-goal.is-scored { background-image: url("/images/sprites/leo-goal-scored.webp"); }
+@keyframes leo-run { 0%,49.999% { background-image: url("/images/sprites/leo-run-1.webp"); } 50%,100% { background-image: url("/images/sprites/leo-run-2.webp"); } }
+@keyframes leo-gallery-cross { from { left: 5%; } to { left: 60%; } }
+@keyframes leo-celebrate { 0%,49.999% { background-image: url("/images/sprites/leo-celebrate-1.webp"); } 50%,100% { background-image: url("/images/sprites/leo-celebrate-2.webp"); } }
 .painter-timer-shell { position: relative; display: grid; place-items: center; width: 100%; min-height: 100svh; padding: max(112px,calc(env(safe-area-inset-top) + 94px)) clamp(22px,5vw,72px) max(128px,calc(env(safe-area-inset-bottom) + 112px)); overflow: hidden; background-color: #f2c75c; background-image: radial-gradient(rgba(33,29,26,.14) 1px,transparent 1px); background-size: 9px 9px; }
 .painter-easel { position: relative; width: min(72vw,calc(100svh - 260px),860px); transform: translateY(-3%); }
 .painter-easel::before,.painter-easel::after { content: ""; position: absolute; z-index: 0; top: 91%; width: 7%; height: 25%; border: 2px solid #613613; background: linear-gradient(90deg,#804719,#c27a32 45%,#8b4b19); box-shadow: 4px 5px 0 rgba(33,29,26,.18); transform-origin: top; }
@@ -253,17 +310,26 @@ button { color: inherit; }
 .painter-status { position: fixed; z-index: 4; top: max(14px,env(safe-area-inset-top)); left: max(14px,env(safe-area-inset-left)); display: grid; gap: 3px; min-width: 150px; padding: 10px 14px; border: 1px solid rgba(255,255,255,.35); border-radius: 12px; background: rgba(17,20,18,.72); color: #fff; backdrop-filter: blur(10px); }.painter-status strong { max-width: 220px; overflow: hidden; font-size: 9px; letter-spacing: .12em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }.painter-status time { font-size: clamp(25px,4vw,50px); font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }.painter-status small { color: #8ee64c; font-size: 7px; letter-spacing: .1em; }.painter-controls { background: rgba(17,20,18,.72); }
 .timeout-overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); background: rgba(33,29,26,.74); backdrop-filter: blur(5px); animation: timeout-backdrop .55s ease-out both; }
 .timeout-card { position: relative; width: min(88vw, 650px); min-height: min(82svh, 680px); display: flex; flex-direction: column; align-items: center; padding: clamp(24px, 4vw, 42px); border: 3px solid var(--ink); background-color: var(--pink); background-image: radial-gradient(rgba(144,63,79,.3) 1px, transparent 1px); background-size: 9px 9px; box-shadow: 12px 12px 0 var(--ink); overflow: hidden; animation: timeout-grow .9s cubic-bezier(.16,1,.3,1) both; }
+.timer-style-bear-honey .timeout-card { background-color: #e8ad52; background-image: radial-gradient(rgba(112,67,16,.24) 1px,transparent 1px); }
+.timer-style-mouse-cheese .timeout-card { background-color: #8fcfc5; background-image: radial-gradient(rgba(38,88,82,.23) 1px,transparent 1px); }
 .timeout-copy { position: relative; z-index: 4; text-align: center; }
 .timeout-copy small { display: block; margin-bottom: 8px; font-size: 9px; font-weight: 900; letter-spacing: .24em; }
 .timeout-copy h2 { margin: 0; color: #fffaf0; font-family: Georgia, serif; font-size: clamp(52px, 10vw, 104px); font-style: italic; font-weight: 400; line-height: .85; letter-spacing: -.06em; text-shadow: 4px 4px 0 var(--ink); transform: rotate(-2deg); }
 .timeout-art { position: relative; flex: 1; width: min(100%, 480px); min-height: 300px; margin: -4px 0 -14px; }
-.timeout-finish-line { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(5px 6px 0 rgba(33,29,26,.18)); }
+.timeout-finish-line { position: absolute; inset: 0; width: 100%; height: 100%; background: url("/images/sprites/finish-line.webp") center / contain no-repeat; image-rendering: pixelated; filter: drop-shadow(5px 6px 0 rgba(33,29,26,.18)); }
+.timer-style-bear-honey .timeout-finish-line,.timer-style-mouse-cheese .timeout-finish-line { background-position: center; background-repeat: no-repeat; background-size: contain; }
+.timer-style-bear-honey .timeout-finish-line { background-image: url("/images/sprites/bear-goal.webp"); }
+.timer-style-mouse-cheese .timeout-finish-line { background-image: url("/images/sprites/mouse-goal.webp"); }
+.timer-style-bear-honey .celebration-sprite { background-size: contain; animation-name: celebrate-bear,celebration-pop; }
+.timer-style-mouse-cheese .celebration-sprite { inset: 7% 0 -7%; background-size: contain; animation-name: celebrate-mouse,celebration-pop; }
 .timeout-bunny { inset: -3% 0 5%; transform: scale(1.08); filter: drop-shadow(4px 6px 0 rgba(33,29,26,.18)); }
 .timeout-card > button { position: relative; z-index: 4; display: flex; justify-content: space-between; width: min(100%, 340px); padding: 15px 18px; border: 2px solid var(--ink); background: var(--orange); box-shadow: 4px 4px 0 var(--ink); font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .12em; cursor: pointer; }
 .timeout-card > button:hover { transform: translate(2px,2px); box-shadow: 2px 2px 0 var(--ink); }
 @keyframes active-bite { to { transform: translateY(-3px); } }
 @keyframes wake-pop { from { transform: scaleY(.05); } to { transform: scaleY(1); } }
 @keyframes celebrate { 0%, 49.999% { background-image: url("/images/sprites/bunny-celebrate-1.webp"); } 50%, 100% { background-image: url("/images/sprites/bunny-celebrate-2.webp"); } }
+@keyframes celebrate-bear { 0%,49.999% { background-image: url("/images/sprites/bear-celebrate-1.webp"); } 50%,100% { background-image: url("/images/sprites/bear-celebrate-2.webp"); } }
+@keyframes celebrate-mouse { 0%,49.999% { background-image: url("/images/sprites/mouse-celebrate-1.webp"); } 50%,100% { background-image: url("/images/sprites/mouse-celebrate-2.webp"); } }
 @keyframes celebration-pop { from { opacity: 0; transform: translateY(12%) scale(.72); } to { opacity: 1; transform: translateY(-8%) scale(1.08); } }
 @keyframes timeout-backdrop { from { opacity: 0; } }
 @keyframes timeout-grow { from { opacity: 0; transform: scale(.16) translateY(65vh); } 65% { opacity: 1; transform: scale(1.035) translateY(0); } to { opacity: 1; transform: scale(1) translateY(0); } }
@@ -299,6 +365,12 @@ button { color: inherit; }
   .timer-actions .icon-button { width: 34px; }
   .timeout-card { width: 94vw; min-height: min(78svh, 590px); padding: 24px 18px; }
   .timeout-art { min-height: 260px; }
+  .leo-player-track { right: 1vw; left: 1vw; height: 36svh; }
+  .leo-running-player { width: clamp(110px,34vw,180px); }
+  .leo-sequence-player { width: clamp(130px,38vw,210px); }
+  .leo-sequence-goal { right: -2vw; width: clamp(135px,40vw,220px); }
+  .leo-status { min-width: 190px; }
+  .leo-audio-toggle { width: 46px; font-size: 20px; }
 }
 
-@media (prefers-reduced-motion: reduce) { .grid-sprite.active, .celebration-sprite, .timeout-overlay, .timeout-card { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .grid-sprite.active, .celebration-sprite, .timeout-overlay, .timeout-card,.leo-running-player,.leo-celebration { animation: none; } .leo-running-player,.leo-field-far,.leo-field-principal,.leo-sequence-goal { transition: none; } }

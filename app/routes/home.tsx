@@ -9,6 +9,7 @@ import { getTimersCollection } from "../services/mongo.server";
 import { TimerStyleSelect } from "../components/timer-style-select";
 import { BlueMoodTimer } from "../components/blue-mood-timer";
 import { RabbitPainterTimer } from "../components/rabbit-painter-timer";
+import { LeoSoccerTimer } from "../components/leo-soccer-timer";
 import { DEFAULT_TIMER_STYLE, isTimerStyleId, TIMER_STYLES, type TimerStyleId } from "../timer-styles";
 
 type GridLayout = { columns: number; rows: number };
@@ -26,12 +27,14 @@ type StoredTimer = {
 type ActiveTimerSummary = { id: string; title: string; endAt: number };
 
 const STYLE_GROUPS: Array<{ id: string; styles: TimerStyleId[] }> = [
-  { id: "rabbit", styles: ["rabbit-carrot"] },
+  { id: "animals", styles: ["rabbit-carrot", "bear-honey", "mouse-cheese"] },
+  { id: "leo", styles: ["leo-soccer"] },
   { id: "faces", styles: ["blue-mood", "green-sleep"] },
   { id: "painter", styles: ["rabbit-painter"] },
 ];
 const AUTOPLAY_STYLES = STYLE_GROUPS.flatMap((group) => group.styles);
 const AUTOPLAY_INTERVAL = 5000;
+const AUTOPLAY_IDLE_DELAY = 60_000;
 
 const DEFAULT_GRID: GridLayout = { columns: 6, rows: 7 };
 const TIMER_KEY_PREFIX = "carrot-timer:";
@@ -151,7 +154,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [localTitles, setLocalTitles] = useState<string[]>([]);
   const [localRunningTimers, setLocalRunningTimers] = useState<ActiveTimerSummary[]>([]);
   const [galleryNow, setGalleryNow] = useState(0);
+  const [galleryHovered, setGalleryHovered] = useState(false);
+  const [galleryInteractionUntil, setGalleryInteractionUntil] = useState(0);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  const galleryPickerRef = useRef<HTMLElement | null>(null);
+  const timeoutAudioRef = useRef<HTMLAudioElement | null>(null);
+  const timeoutAudioPlayedRef = useRef(false);
   const preferredCells = Math.max(1, grid.columns * grid.rows - 1);
   const totalCells = Math.max(1, Math.min(preferredCells, Math.floor(duration / 5)));
   const gridRatio = grid.columns / grid.rows;
@@ -188,10 +196,48 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return () => window.removeEventListener("resize", updateGrid);
   }, []);
 
+  useEffect(() => {
+    const audio = new Audio("/audios/timeout.mp3");
+    audio.preload = "auto";
+    audio.volume = 0.85;
+    timeoutAudioRef.current = audio;
+    return () => {
+      audio.pause();
+      timeoutAudioRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!started) {
+      timeoutAudioPlayedRef.current = false;
+      const audio = timeoutAudioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      return;
+    }
+    if (remaining > 60) {
+      timeoutAudioPlayedRef.current = false;
+      return;
+    }
+    if (remaining <= 0 || timeoutAudioPlayedRef.current) return;
+    const audio = timeoutAudioRef.current;
+    if (!audio) return;
+    timeoutAudioPlayedRef.current = true;
+    audio.currentTime = 0;
+    void audio.play().catch(() => undefined);
+  }, [started, remaining]);
+
   const timerIsActive = started && !paused && remaining > 0;
 
   useEffect(() => {
-    if (started || drawerOpen) return;
+    if (started || drawerOpen || galleryHovered) return;
+    const idleDelay = galleryInteractionUntil - Date.now();
+    if (idleDelay > 0) {
+      const timeout = window.setTimeout(() => setGalleryInteractionUntil(0), idleDelay);
+      return () => window.clearTimeout(timeout);
+    }
     const interval = window.setInterval(() => {
       setTimerStyle((current) => {
         const currentIndex = AUTOPLAY_STYLES.indexOf(current);
@@ -199,7 +245,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       });
     }, AUTOPLAY_INTERVAL);
     return () => window.clearInterval(interval);
-  }, [started, drawerOpen]);
+  }, [started, drawerOpen, galleryHovered, galleryInteractionUntil]);
 
   useEffect(() => {
     if (started) return;
@@ -373,9 +419,29 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const selectedGroup = STYLE_GROUPS.find((group) => group.styles.includes(timerStyle))?.id;
   const currentUser = loaderData?.user ?? null;
 
+  useEffect(() => {
+    if (started || !selectedGroup) return;
+    const picker = galleryPickerRef.current;
+    const group = picker?.querySelector<HTMLElement>(`[data-style-group="${selectedGroup}"]`);
+    if (!picker || !group) return;
+    const frame = window.requestAnimationFrame(() => {
+      picker.scrollTo({ left: group.offsetLeft - (picker.clientWidth - group.clientWidth) / 2, behavior: "smooth" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [started, selectedGroup]);
+
   const chooseTimerStyle = (styleId: TimerStyleId) => {
     setTimerStyle(styleId);
     setDrawerOpen(true);
+  };
+
+  const previewTimerStyle = (styleId: TimerStyleId) => {
+    setTimerStyle(styleId);
+    setGalleryHovered(true);
+  };
+
+  const pauseGalleryAutoplay = () => {
+    setGalleryInteractionUntil(Date.now() + AUTOPLAY_IDLE_DELAY);
   };
 
   const moveTimerStyle = (direction: -1 | 1) => {
@@ -388,6 +454,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const handleStyleGalleryKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       event.preventDefault();
+      pauseGalleryAutoplay();
       moveTimerStyle(event.key === "ArrowLeft" ? -1 : 1);
       return;
     }
@@ -498,6 +565,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <main className={`style-gallery-shell style-gallery-${timerStyle}`} style={{ "--gallery-background": selectedStyle.previewBackground } as React.CSSProperties}>
         <div className="style-gallery-hero" aria-hidden="true">
           {timerStyle === "rabbit-carrot" ? <div className="style-gallery-animated-sprite rabbit-eating-preview" />
+            : timerStyle === "bear-honey" || timerStyle === "mouse-cheese" ? <div className={`style-gallery-animated-sprite animal-eating-preview ${timerStyle}`} />
+            : timerStyle === "leo-soccer" ? <div className="leo-gallery-preview"><span className="leo-gallery-field" /><span className="leo-gallery-player" /></div>
             : timerStyle === "rabbit-painter" ? <div className="style-gallery-animated-sprite rabbit-painting-preview" />
               : timerStyle === "blue-mood" || timerStyle === "green-sleep" ? <div className={`mood-sprite-preview ${timerStyle}`}>
                 <img src={selectedStyle.heroImage} alt="" />
@@ -527,20 +596,20 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </nav>
         </header>
 
-        <section className="style-gallery-picker" aria-label="Choose a timer style. Use left and right arrow keys to browse." tabIndex={0} onKeyDown={handleStyleGalleryKeyDown}>
+        <section ref={galleryPickerRef} className="style-gallery-picker" aria-label="Choose a timer style. Use left and right arrow keys to browse." tabIndex={0} onKeyDown={handleStyleGalleryKeyDown} onMouseEnter={() => setGalleryHovered(true)} onMouseLeave={() => { setGalleryHovered(false); pauseGalleryAutoplay(); }}>
           {STYLE_GROUPS.map((group) => {
             const groupStyleId = group.styles.includes(timerStyle) ? timerStyle : group.styles[0];
             const groupStyle = TIMER_STYLES[groupStyleId];
             const visibleStyles = group.styles.slice(0, 3);
             const hiddenCount = group.styles.length - visibleStyles.length;
-            return <div key={group.id} className={`style-choice-group ${selectedGroup === group.id ? "is-selected" : ""}`}>
-              <button type="button" className="style-choice-main" onClick={() => chooseTimerStyle(groupStyleId)} aria-label={`Use ${groupStyle.label}`} title={groupStyle.label}>
-                <img src={groupStyleId === "rabbit-carrot" ? TIMER_STYLES["rabbit-carrot"].heroImage : groupStyle.thumbnail} alt="" />
+            return <div key={group.id} data-style-group={group.id} className={`style-choice-group ${selectedGroup === group.id ? "is-selected" : ""}`}>
+              <button type="button" className="style-choice-main" onMouseEnter={() => previewTimerStyle(groupStyleId)} onClick={() => chooseTimerStyle(groupStyleId)} aria-label={`Use ${groupStyle.label}`} title={groupStyle.label}>
+                {group.id === "animals" ? <span className={`animal-style-thumbnail ${groupStyleId}`} /> : <img src={groupStyle.thumbnail} alt="" />}
               </button>
               <div className="style-choice-variants">
                 {visibleStyles.map((styleId) => {
                   const style = TIMER_STYLES[styleId];
-                  return <button key={styleId} type="button" className={timerStyle === styleId ? "is-selected" : ""} onClick={() => chooseTimerStyle(styleId)} aria-label={`Use ${style.label}`} title={style.label}><img src={styleId === "rabbit-carrot" ? style.heroImage : style.thumbnail} alt="" /></button>;
+                  return <button key={styleId} type="button" className={timerStyle === styleId ? "is-selected" : ""} onMouseEnter={() => previewTimerStyle(styleId)} onClick={() => chooseTimerStyle(styleId)} aria-label={`Use ${style.label}`} title={style.label}>{group.id === "animals" ? <span className={`animal-style-thumbnail ${styleId}`} /> : <img src={style.thumbnail} alt="" />}</button>;
                 })}
                 {hiddenCount > 0 && <button type="button" className="style-choice-more" onClick={() => chooseTimerStyle(group.styles[3])} aria-label={`${hiddenCount} more timer styles`}>+{hiddenCount}</button>}
               </div>
@@ -592,8 +661,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return <RabbitPainterTimer timerId={timerId || "preview"} title={timerTitle.trim() || "Timer"} time={formatTime(remaining)} duration={duration} remaining={remaining} paused={paused} finished={isFinished} wakeActive={wakeActive} wakeSupported={wakeSupported} notificationEnabled={notificationPermission === "granted"} notificationsAvailable={notificationPermission !== "denied" && notificationPermission !== "unsupported"} onToggleWake={toggleWakeLock} onToggleNotifications={enableNotifications} onTogglePause={togglePause} onReset={reset} />;
   }
 
+  if (timerStyle === "leo-soccer") {
+    return <LeoSoccerTimer title={timerTitle.trim() || "Timer"} time={formatTime(remaining)} duration={duration} remaining={remaining} paused={paused} finished={isFinished} wakeActive={wakeActive} wakeSupported={wakeSupported} notificationEnabled={notificationPermission === "granted"} notificationsAvailable={notificationPermission !== "denied" && notificationPermission !== "unsupported"} onToggleWake={toggleWakeLock} onToggleNotifications={enableNotifications} onTogglePause={togglePause} onReset={reset} />;
+  }
+
   return (
-    <main className={`timer-shell ${isFinished ? "is-finished" : ""}`}>
+    <main className={`timer-shell timer-style-${timerStyle} ${isFinished ? "is-finished" : ""}`}>
       <header className="timer-header">
         <div className="timer-title">
           <span className="mini-carrot">◆</span>
@@ -630,7 +703,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               <h2>TIME’S OUT!</h2>
             </div>
             <div className="timeout-art" aria-hidden="true">
-              <img className="timeout-finish-line" src="/images/sprites/finish-line.webp" alt="" />
+              <div className="timeout-finish-line" />
               <div className="celebration-sprite timeout-bunny" />
             </div>
             <button onClick={reset}>Start another timer <span>↻</span></button>

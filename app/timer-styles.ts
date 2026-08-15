@@ -6,6 +6,27 @@ export const TIMER_STYLES = {
     previewBackground: "#ff9cae",
     heroImage: "/images/sprites/rabbit-jump.png",
   },
+  "bear-honey": {
+    label: "Bear & Honey",
+    description: "A bear enjoys one pot of honey at a time.",
+    thumbnail: "/images/sprites/bear-1.webp",
+    previewBackground: "#e8ad52",
+    heroImage: "/images/sprites/bear-1.webp",
+  },
+  "mouse-cheese": {
+    label: "Mouse & Cheese",
+    description: "A mouse nibbles one piece of cheese at a time.",
+    thumbnail: "/images/sprites/mouse-1.webp",
+    previewBackground: "#8fcfc5",
+    heroImage: "/images/sprites/mouse-1.webp",
+  },
+  "leo-soccer": {
+    label: "Leo Soccer",
+    description: "Leo runs across the field and scores when time is up.",
+    thumbnail: "/images/sprites/leo-run-1.webp",
+    previewBackground: "#72c8f2",
+    heroImage: "/images/sprites/leo-run-1.webp",
+  },
   "blue-mood": {
     label: "Blue Mood",
     description: "A full-screen digital face with changing moods.",

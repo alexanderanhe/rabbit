@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Gesture = "smile" | "happy" | "stars" | "sleep" | "awake";
 type MoodVariant = "blue" | "green-sleep";
@@ -18,6 +18,8 @@ export function BlueMoodTimer({ variant, title, time, progress, paused, finished
 }) {
   const sleepingVariant = variant === "green-sleep";
   const [gesture, setGesture] = useState<Gesture>(sleepingVariant ? "sleep" : "smile");
+  const finishAudioRef = useRef<HTMLAudioElement | null>(null);
+  const finishAudioPlayedRef = useRef(false);
   const normalizedProgress = Math.max(0, Math.min(1, progress));
   const remainingSegments = finished ? 0 : Math.ceil((1 - normalizedProgress) * 20);
   const removedSegments = 20 - remainingSegments;
@@ -46,9 +48,28 @@ export function BlueMoodTimer({ variant, title, time, progress, paused, finished
     return () => window.clearTimeout(timeout);
   }, [sleepingVariant, paused, finished]);
 
+  useEffect(() => {
+    const audio = finishAudioRef.current;
+    if (!audio) return;
+    if (!finished) {
+      finishAudioPlayedRef.current = false;
+      audio.pause();
+      audio.currentTime = 0;
+      return;
+    }
+    if (finishAudioPlayedRef.current) return;
+    finishAudioPlayedRef.current = true;
+    audio.volume = 0.85;
+    audio.currentTime = 0;
+    void audio.play().catch(() => undefined);
+  }, [finished]);
+
+  useEffect(() => () => finishAudioRef.current?.pause(), []);
+
   const housing = sleepingVariant ? "/images/timer-styles/green-sleep-housing.webp" : "/images/timer-styles/blue-mood-housing.webp";
 
   return <main className={`blue-mood-shell ${sleepingVariant ? "green-sleep-shell" : ""}`}>
+    <audio ref={finishAudioRef} src="/audios/ticking-bomb.mp3" preload="auto" playsInline />
     <div className="blue-mood-stage">
       <img className="blue-mood-housing" src={housing} alt="" />
       <div className="blue-mood-display">
