@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { IoNotificationsOutline, IoSunnyOutline } from "react-icons/io5";
 
 const FRAME_SECONDS = 1;
 const FRAMES_PER_CELL = 4;
@@ -59,8 +60,8 @@ export function RabbitPainterTimer({ timerId, title, time, duration, remaining, 
 
     <div className="painter-status"><strong>{title}</strong><time>{time}</time><small>{finished ? "PAINTING COMPLETE" : paused ? "PAUSED" : `${paintedCells} / ${totalCells} SQUARES`}</small></div>
     <header className="blue-mood-controls painter-controls">
-      <button className={wakeActive ? "active" : ""} onClick={onToggleWake} disabled={!wakeSupported} aria-label="Keep screen on">☀</button>
-      <button className={notificationEnabled ? "active" : ""} onClick={onToggleNotifications} disabled={!notificationsAvailable} aria-label="Enable notifications">◇</button>
+      <button className={wakeActive ? "active" : ""} onClick={onToggleWake} disabled={!wakeSupported} aria-label="Keep screen on"><IoSunnyOutline /></button>
+      <button className={notificationEnabled ? "active" : ""} onClick={onToggleNotifications} disabled={!notificationsAvailable} aria-label="Enable notifications"><IoNotificationsOutline /></button>
       <button onClick={onTogglePause} disabled={finished}>{paused ? "Resume" : "Pause"}</button>
       <button onClick={onReset}>Reset</button>
     </header>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { IoNotificationsOutline, IoSunnyOutline, IoVolumeHigh, IoVolumeMute } from "react-icons/io5";
 
 const SHOT_SECONDS = 2;
 const CELEBRATION_SECONDS = 4;
@@ -85,11 +86,11 @@ export function LeoSoccerTimer({ title, time, duration, remaining, paused, finis
       <small>{finished ? "TIEMPO COMPLETADO" : paused ? "PAUSA" : phase === "kick" ? "TIRO A GOL" : phase === "celebrate" ? "¡GOL!" : "CORRIENDO HACIA LA META"}</small>
     </div>
 
-    <button type="button" className={`leo-audio-toggle ${ambientEnabled ? "is-active" : ""}`} onClick={() => setAmbientEnabled((enabled) => !enabled)} aria-pressed={ambientEnabled} aria-label={ambientEnabled ? "Mute stadium ambience" : "Play stadium ambience"} title={ambientEnabled ? "Mute stadium" : "Play stadium"}>{ambientEnabled ? "🔊" : "🔇"}</button>
+    <button type="button" className={`leo-audio-toggle ${ambientEnabled ? "is-active" : ""}`} onClick={() => setAmbientEnabled((enabled) => !enabled)} aria-pressed={ambientEnabled} aria-label={ambientEnabled ? "Mute stadium ambience" : "Play stadium ambience"} title={ambientEnabled ? "Mute stadium" : "Play stadium"}>{ambientEnabled ? <IoVolumeHigh /> : <IoVolumeMute />}</button>
 
     <header className="blue-mood-controls leo-controls">
-      <button className={wakeActive ? "active" : ""} onClick={onToggleWake} disabled={!wakeSupported} aria-label="Keep screen on">☀</button>
-      <button className={notificationEnabled ? "active" : ""} onClick={onToggleNotifications} disabled={!notificationsAvailable} aria-label="Enable notifications">◇</button>
+      <button className={wakeActive ? "active" : ""} onClick={onToggleWake} disabled={!wakeSupported} aria-label="Keep screen on"><IoSunnyOutline /></button>
+      <button className={notificationEnabled ? "active" : ""} onClick={onToggleNotifications} disabled={!notificationsAvailable} aria-label="Enable notifications"><IoNotificationsOutline /></button>
       <button onClick={onTogglePause} disabled={finished}>{paused ? "Resume" : "Pause"}</button>
       <button onClick={onReset}>Reset</button>
     </header>

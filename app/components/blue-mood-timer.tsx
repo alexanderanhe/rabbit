@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { IoNotificationsOutline, IoSunnyOutline } from "react-icons/io5";
 
 type Gesture = "smile" | "happy" | "stars" | "sleep" | "awake";
 type MoodVariant = "blue" | "green-sleep";
@@ -87,8 +88,8 @@ export function BlueMoodTimer({ variant, title, time, progress, paused, finished
       </div>
     </div>
     <header className="blue-mood-controls">
-      <button className={wakeActive ? "active" : ""} onClick={onToggleWake} disabled={!wakeSupported} aria-label="Keep screen on">☀</button>
-      <button className={notificationEnabled ? "active" : ""} onClick={onToggleNotifications} disabled={!notificationsAvailable} aria-label="Enable notifications">◇</button>
+      <button className={wakeActive ? "active" : ""} onClick={onToggleWake} disabled={!wakeSupported} aria-label="Keep screen on"><IoSunnyOutline /></button>
+      <button className={notificationEnabled ? "active" : ""} onClick={onToggleNotifications} disabled={!notificationsAvailable} aria-label="Enable notifications"><IoNotificationsOutline /></button>
       <button onClick={onTogglePause} disabled={finished}>{paused ? "Resume" : "Pause"}</button>
       <button onClick={onReset}>Reset</button>
     </header>

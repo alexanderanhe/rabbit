@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { Form, Link, useNavigate, useParams } from "react-router";
 import { Drawer } from "vaul";
+import { IoArrowForward, IoClose, IoNotificationsOutline, IoPersonOutline, IoRefresh, IoSunnyOutline, IoTimeOutline } from "react-icons/io5";
 import type { Route } from "./+types/home";
 import type { PushSubscriptionData, RemoteTimerPayload } from "../services/backend.types";
 import { getCurrentUser } from "../services/auth.server";
@@ -33,6 +34,10 @@ const STYLE_GROUPS: Array<{ id: string; styles: TimerStyleId[] }> = [
   { id: "painter", styles: ["rabbit-painter"] },
 ];
 const AUTOPLAY_STYLES = STYLE_GROUPS.flatMap((group) => group.styles);
+// Styles whose own component already plays a dedicated sound when the timer finishes
+// (leo-soccer: stadium-gol.mp3, blue-mood/green-sleep: ticking-bomb.mp3). The generic
+// "1 minute left" warning is skipped for these to avoid overlapping with that sound.
+const STYLES_WITH_OWN_FINISH_AUDIO: TimerStyleId[] = ["leo-soccer", "blue-mood", "green-sleep"];
 const AUTOPLAY_INTERVAL = 5000;
 const AUTOPLAY_IDLE_DELAY = 60_000;
 
@@ -158,8 +163,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [galleryInteractionUntil, setGalleryInteractionUntil] = useState(0);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const galleryPickerRef = useRef<HTMLElement | null>(null);
-  const timeoutAudioRef = useRef<HTMLAudioElement | null>(null);
-  const timeoutAudioPlayedRef = useRef(false);
+  const finishAudioRef = useRef<HTMLAudioElement | null>(null);
+  const finishAudioPlayedRef = useRef(false);
+  const oneMinuteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const oneMinuteAudioPlayedRef = useRef(false);
   const preferredCells = Math.max(1, grid.columns * grid.rows - 1);
   const totalCells = Math.max(1, Math.min(preferredCells, Math.floor(duration / 5)));
   const gridRatio = grid.columns / grid.rows;
@@ -197,20 +204,49 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }, []);
 
   useEffect(() => {
-    const audio = new Audio("/audios/timeout.mp3");
+    const audio = new Audio("/audios/eating.mp3");
     audio.preload = "auto";
     audio.volume = 0.85;
-    timeoutAudioRef.current = audio;
+    finishAudioRef.current = audio;
     return () => {
       audio.pause();
-      timeoutAudioRef.current = null;
+      finishAudioRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    if (!started) {
-      timeoutAudioPlayedRef.current = false;
-      const audio = timeoutAudioRef.current;
+    if (!started || !STYLE_GROUPS[0].styles.includes(timerStyle)) {
+      finishAudioPlayedRef.current = false;
+      const audio = finishAudioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      return;
+    }
+    if (remaining !== 0 || finishAudioPlayedRef.current) return;
+    const audio = finishAudioRef.current;
+    if (!audio) return;
+    finishAudioPlayedRef.current = true;
+    audio.currentTime = 0;
+    void audio.play().catch(() => undefined);
+  }, [started, remaining, timerStyle]);
+
+  useEffect(() => {
+    const audio = new Audio("/audios/timeout.mp3");
+    audio.preload = "auto";
+    audio.volume = 0.85;
+    oneMinuteAudioRef.current = audio;
+    return () => {
+      audio.pause();
+      oneMinuteAudioRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!started || STYLES_WITH_OWN_FINISH_AUDIO.includes(timerStyle)) {
+      oneMinuteAudioPlayedRef.current = false;
+      const audio = oneMinuteAudioRef.current;
       if (audio) {
         audio.pause();
         audio.currentTime = 0;
@@ -218,16 +254,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       return;
     }
     if (remaining > 60) {
-      timeoutAudioPlayedRef.current = false;
+      oneMinuteAudioPlayedRef.current = false;
       return;
     }
-    if (remaining <= 0 || timeoutAudioPlayedRef.current) return;
-    const audio = timeoutAudioRef.current;
+    if (remaining <= 0 || oneMinuteAudioPlayedRef.current) return;
+    const audio = oneMinuteAudioRef.current;
     if (!audio) return;
-    timeoutAudioPlayedRef.current = true;
+    oneMinuteAudioPlayedRef.current = true;
     audio.currentTime = 0;
     void audio.play().catch(() => undefined);
-  }, [started, remaining]);
+  }, [started, remaining, timerStyle]);
 
   const timerIsActive = started && !paused && remaining > 0;
 
@@ -579,18 +615,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="style-gallery-mark" aria-label="Rabbit Timer"><img src="/images/icons/icon-192.png" alt="" /></div>
           <nav className="style-gallery-menus" aria-label="Timer and account menus">
             <details className="gallery-menu running-menu">
-              <summary aria-label={`${visibleRunningTimers.length} active timers`} title="Active timers"><span aria-hidden="true">◷</span>{visibleRunningTimers.length > 0 && <b>{visibleRunningTimers.length}</b>}</summary>
+              <summary aria-label={`${visibleRunningTimers.length} active timers`} title="Active timers"><span aria-hidden="true"><IoTimeOutline /></span>{visibleRunningTimers.length > 0 && <b>{visibleRunningTimers.length}</b>}</summary>
               <div className="gallery-dropdown">
                 <strong>RUNNING</strong>
-                {visibleRunningTimers.length === 0 ? <p>NO ACTIVE TIMERS</p> : visibleRunningTimers.map((timer) => <Link key={timer.id} to={`/timer/${timer.id}`}><span><em>{timer.title}</em><time>{galleryNow === 0 ? "--:--" : formatTime(Math.max(0, Math.ceil((timer.endAt - galleryNow) / 1000)))}</time></span><i>→</i></Link>)}
+                {visibleRunningTimers.length === 0 ? <p>NO ACTIVE TIMERS</p> : visibleRunningTimers.map((timer) => <Link key={timer.id} to={`/timer/${timer.id}`}><span><em>{timer.title}</em><time>{galleryNow === 0 ? "--:--" : formatTime(Math.max(0, Math.ceil((timer.endAt - galleryNow) / 1000)))}</time></span><i><IoArrowForward /></i></Link>)}
               </div>
             </details>
             <details className="gallery-menu account-menu">
-              <summary className="gallery-avatar" aria-label="Account menu" title="Account">{currentUser ? getInitials(currentUser.name, currentUser.email) : "?"}</summary>
+              <summary className="gallery-avatar" aria-label="Account menu" title="Account">{currentUser ? getInitials(currentUser.name, currentUser.email) : <IoPersonOutline />}</summary>
               <div className="gallery-dropdown">
                 {currentUser && <strong>{currentUser.name || currentUser.email}</strong>}
-                <Link to="/account">ACCOUNT <i>→</i></Link>
-                {currentUser && <Form action="/logout" method="post"><button type="submit">SIGN OUT <i>×</i></button></Form>}
+                <Link to="/account">ACCOUNT <i><IoArrowForward /></i></Link>
+                {currentUser && <Form action="/logout" method="post"><button type="submit">SIGN OUT <i><IoClose /></i></button></Form>}
               </div>
             </details>
           </nav>
@@ -623,7 +659,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <Drawer.Content className="timer-drawer-content">
               <div className="drawer-handle" aria-hidden="true" />
               <div className="timer-drawer-inner">
-                <div className="drawer-heading"><div><p>NEW TIMER</p><Drawer.Title>Ready to run?</Drawer.Title></div><Drawer.Close className="drawer-close" aria-label="Close timer settings">×</Drawer.Close></div>
+                <div className="drawer-heading"><div><p>NEW TIMER</p><Drawer.Title>Ready to run?</Drawer.Title></div><Drawer.Close className="drawer-close" aria-label="Close timer settings"><IoClose /></Drawer.Close></div>
                 <Drawer.Description className="drawer-description">Adjust the time or give this timer a name.</Drawer.Description>
 
                 <div className="time-picker drawer-time-picker" aria-label="Timer duration">
@@ -639,10 +675,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 {recentTitles.length > 0 && <div className="recent-titles"><span>PREVIOUS TIMER NAMES</span><div>{recentTitles.map((title) => <button type="button" key={title} className={timerTitle === title ? "selected" : ""} onClick={() => setTimerTitle(title)}>{title}</button>)}</div></div>}
 
                 <div className="focus-options drawer-options">
-                  <button type="button" className={wakeEnabled ? "enabled" : ""} onClick={toggleWakeLock} disabled={!wakeSupported}><span aria-hidden="true">☀</span><strong>Keep screen on</strong><small>{!wakeSupported ? "Unavailable" : wakeEnabled ? "Enabled" : "Disabled"}</small></button>
-                  <button type="button" className={notificationPermission === "granted" ? "enabled" : ""} onClick={enableNotifications} disabled={notificationPermission === "denied" || notificationPermission === "unsupported"}><span aria-hidden="true">♢</span><strong>Notify me</strong><small>{notificationPermission === "granted" ? "Enabled" : notificationPermission === "denied" ? "Blocked" : notificationPermission === "unsupported" ? "Unavailable" : "Enable"}</small></button>
+                  <button type="button" className={wakeEnabled ? "enabled" : ""} onClick={toggleWakeLock} disabled={!wakeSupported}><span aria-hidden="true"><IoSunnyOutline /></span><strong>Keep screen on</strong><small>{!wakeSupported ? "Unavailable" : wakeEnabled ? "Enabled" : "Disabled"}</small></button>
+                  <button type="button" className={notificationPermission === "granted" ? "enabled" : ""} onClick={enableNotifications} disabled={notificationPermission === "denied" || notificationPermission === "unsupported"}><span aria-hidden="true"><IoNotificationsOutline /></span><strong>Notify me</strong><small>{notificationPermission === "granted" ? "Enabled" : notificationPermission === "denied" ? "Blocked" : notificationPermission === "unsupported" ? "Unavailable" : "Enable"}</small></button>
                 </div>
-                <button className="start-button drawer-start" onClick={start}>Start {minutes} min timer <span aria-hidden="true">→</span></button>
+                <button className="start-button drawer-start" onClick={start}>Start {minutes} min timer <span aria-hidden="true"><IoArrowForward /></span></button>
               </div>
             </Drawer.Content>
           </Drawer.Portal>
@@ -674,10 +710,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
         <time>{formatTime(remaining)}</time>
         <div className="timer-actions">
-          <button className={`status-button ${wakeActive ? "is-active" : ""}`} onClick={toggleWakeLock} disabled={!wakeSupported} aria-label="Keep screen on" title="Keep screen on">☀</button>
-          <button className={`status-button ${notificationPermission === "granted" ? "is-active" : ""}`} onClick={enableNotifications} disabled={notificationPermission === "denied" || notificationPermission === "unsupported"} aria-label="Enable notifications" title="Notify when finished">♢</button>
+          <button className={`status-button ${wakeActive ? "is-active" : ""}`} onClick={toggleWakeLock} disabled={!wakeSupported} aria-label="Keep screen on" title="Keep screen on"><IoSunnyOutline /></button>
+          <button className={`status-button ${notificationPermission === "granted" ? "is-active" : ""}`} onClick={enableNotifications} disabled={notificationPermission === "denied" || notificationPermission === "unsupported"} aria-label="Enable notifications" title="Notify when finished"><IoNotificationsOutline /></button>
           <button onClick={togglePause} disabled={isFinished}>{paused ? "Resume" : "Pause"}</button>
-          <button className="icon-button" onClick={reset} aria-label="Reset">↻</button>
+          <button className="icon-button" onClick={reset} aria-label="Reset"><IoRefresh /></button>
         </div>
       </header>
 
@@ -706,7 +742,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               <div className="timeout-finish-line" />
               <div className="celebration-sprite timeout-bunny" />
             </div>
-            <button onClick={reset}>Start another timer <span>↻</span></button>
+            <button onClick={reset}>Start another timer <span><IoRefresh /></span></button>
           </div>
         </section>
       )}

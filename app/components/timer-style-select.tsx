@@ -1,3 +1,4 @@
+import { IoChevronDown } from "react-icons/io5";
 import { TIMER_STYLES, type TimerStyleId } from "../timer-styles";
 
 export function TimerStyleSelect({ value, onChange }: { value: TimerStyleId; onChange: (value: TimerStyleId) => void }) {
@@ -13,7 +14,7 @@ export function TimerStyleSelect({ value, onChange }: { value: TimerStyleId; onC
       <legend>TIMER STYLE</legend>
       <button type="button" className="timer-style-visual-select" style={{ background: selectedStyle.previewBackground }} onClick={selectNextStyle} aria-label={`${selectedStyle.label}. Click to change timer style.`}>
         <img src={selectedStyle.thumbnail} alt="" />
-        <span aria-hidden="true">⌄</span>
+        <span aria-hidden="true"><IoChevronDown /></span>
       </button>
     </fieldset>
   );
