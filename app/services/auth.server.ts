@@ -60,5 +60,9 @@ export async function getCurrentUser(request: Request) {
   const userId = await getUserId(request);
   if (!userId) return null;
   const user = await (await getUsersCollection()).findOne({ _id: userId }, { projection: { name: 1, email: 1 } });
-  return user ? { id: user._id.toHexString(), name: user.name, email: user.email } : null;
+  return user ? {
+    id: user._id.toHexString(),
+    name: typeof user.name === "string" ? user.name : "",
+    email: typeof user.email === "string" ? user.email : "",
+  } : null;
 }

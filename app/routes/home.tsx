@@ -67,8 +67,8 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
 }
 
-function getInitials(name: string, email: string) {
-  const source = name.trim() || email.split("@")[0];
+function getInitials(name?: string, email?: string) {
+  const source = name?.trim() || email?.split("@")[0]?.trim() || "Rabbit";
   const parts = source.split(/\s+/).filter(Boolean);
   return `${parts[0]?.[0] || "R"}${parts.length > 1 ? parts.at(-1)?.[0] || "" : ""}`.toUpperCase();
 }
