@@ -8,6 +8,8 @@ const PAINTINGS = [
   "/images/sprites/paint-1.webp",
   "/images/sprites/paint-2.webp",
   "/images/sprites/paint-3.webp",
+  "/images/sprites/paint-4.webp",
+  "/images/sprites/paint-5.webp",
 ] as const;
 
 function selectPainting(timerId: string) {
