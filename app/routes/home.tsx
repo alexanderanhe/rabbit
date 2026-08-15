@@ -1,23 +1,37 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
-import { Link, useNavigate, useParams } from "react-router";
+import { Form, Link, useNavigate, useParams } from "react-router";
 import { Drawer } from "vaul";
 import type { Route } from "./+types/home";
 import type { PushSubscriptionData, RemoteTimerPayload } from "../services/backend.types";
 import { getCurrentUser } from "../services/auth.server";
 import { getTimersCollection } from "../services/mongo.server";
+import { TimerStyleSelect } from "../components/timer-style-select";
+import { BlueMoodTimer } from "../components/blue-mood-timer";
+import { RabbitPainterTimer } from "../components/rabbit-painter-timer";
+import { DEFAULT_TIMER_STYLE, isTimerStyleId, TIMER_STYLES, type TimerStyleId } from "../timer-styles";
 
 type GridLayout = { columns: number; rows: number };
 type StoredTimer = {
   id: string;
   token?: string;
   title?: string;
+  styleId?: TimerStyleId;
   duration: number;
   remaining: number;
   endAt: number | null;
   status: "running" | "paused" | "finished";
   createdAt: number;
 };
+type ActiveTimerSummary = { id: string; title: string; endAt: number };
+
+const STYLE_GROUPS: Array<{ id: string; styles: TimerStyleId[] }> = [
+  { id: "rabbit", styles: ["rabbit-carrot"] },
+  { id: "faces", styles: ["blue-mood", "green-sleep"] },
+  { id: "painter", styles: ["rabbit-painter"] },
+];
+const AUTOPLAY_STYLES = STYLE_GROUPS.flatMap((group) => group.styles);
+const AUTOPLAY_INTERVAL = 5000;
 
 const DEFAULT_GRID: GridLayout = { columns: 6, rows: 7 };
 const TIMER_KEY_PREFIX = "carrot-timer:";
@@ -36,16 +50,27 @@ export function meta({}: Route.MetaArgs) {
 export async function loader({ request }: Route.LoaderArgs) {
   try {
     const user = await getCurrentUser(request);
-    if (!user) return { recentTitles: [] as string[] };
+    if (!user) return { user: null, recentTitles: [] as string[], runningTimers: [] as ActiveTimerSummary[] };
     const { ObjectId } = await import("mongodb");
     const timers = await (await getTimersCollection()).find(
-      { userId: new ObjectId(user.id), title: { $nin: ["", "Timer"] } },
-      { projection: { title: 1 } },
-    ).sort({ createdAt: -1 }).limit(30).toArray();
-    return { recentTitles: [...new Set(timers.map((timer) => timer.title.trim()).filter(Boolean))].slice(0, 8) };
+      { userId: new ObjectId(user.id) },
+      { projection: { timerId: 1, title: 1, status: 1, endAt: 1 } },
+    ).sort({ createdAt: -1 }).limit(50).toArray();
+    const now = Date.now();
+    return {
+      user,
+      recentTitles: [...new Set(timers.map((timer) => timer.title.trim()).filter((title) => title && title !== "Timer"))].slice(0, 8),
+      runningTimers: timers.filter((timer) => timer.status === "running" && timer.endAt.getTime() > now).map((timer) => ({ id: timer.timerId, title: timer.title, endAt: timer.endAt.getTime() })),
+    };
   } catch {
-    return { recentTitles: [] as string[] };
+    return { user: null, recentTitles: [] as string[], runningTimers: [] as ActiveTimerSummary[] };
   }
+}
+
+function getInitials(name: string, email: string) {
+  const source = name.trim() || email.split("@")[0];
+  const parts = source.split(/\s+/).filter(Boolean);
+  return `${parts[0]?.[0] || "R"}${parts.length > 1 ? parts.at(-1)?.[0] || "" : ""}`.toUpperCase();
 }
 
 function formatTime(seconds: number) {
@@ -107,6 +132,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
   const { timerId } = useParams();
   const [timerTitle, setTimerTitle] = useState("");
+  const [timerStyle, setTimerStyle] = useState<TimerStyleId>(DEFAULT_TIMER_STYLE);
   const [minutes, setMinutes] = useState(5);
   const [duration, setDuration] = useState(300);
   const [remaining, setRemaining] = useState(300);
@@ -123,6 +149,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">("default");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [localTitles, setLocalTitles] = useState<string[]>([]);
+  const [localRunningTimers, setLocalRunningTimers] = useState<ActiveTimerSummary[]>([]);
+  const [galleryNow, setGalleryNow] = useState(0);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const preferredCells = Math.max(1, grid.columns * grid.rows - 1);
   const totalCells = Math.max(1, Math.min(preferredCells, Math.floor(duration / 5)));
@@ -138,24 +166,48 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setWakeSupported("wakeLock" in navigator);
     setWakeEnabled(window.localStorage.getItem(WAKE_LOCK_PREFERENCE) === "true");
     setNotificationPermission("Notification" in window ? Notification.permission : "unsupported");
-    const titles = Object.keys(window.localStorage)
+    const storedTimers = Object.keys(window.localStorage)
       .filter((key) => key.startsWith(TIMER_KEY_PREFIX) && !key.includes("wake-lock") && !key.includes("notified"))
       .flatMap((key) => {
         try {
           const stored = JSON.parse(window.localStorage.getItem(key) || "null") as StoredTimer | null;
-          const title = stored?.title?.trim();
-          return title && title !== "Timer" ? [{ title, createdAt: stored?.createdAt || 0 }] : [];
+          return stored ? [stored] : [];
         } catch { return []; }
-      })
+      });
+    const titles = storedTimers
+      .map((stored) => ({ title: stored.title?.trim() || "", createdAt: stored.createdAt || 0 }))
+      .filter(({ title }) => title && title !== "Timer")
       .sort((a, b) => b.createdAt - a.createdAt)
       .map(({ title }) => title);
     setLocalTitles([...new Set(titles)].slice(0, 8));
+    setLocalRunningTimers(storedTimers
+      .filter((stored) => stored.status === "running" && typeof stored.endAt === "number" && stored.endAt > Date.now())
+      .map((stored) => ({ id: stored.id, title: stored.title?.trim() || "Timer", endAt: stored.endAt! })));
     updateGrid();
     window.addEventListener("resize", updateGrid);
     return () => window.removeEventListener("resize", updateGrid);
   }, []);
 
   const timerIsActive = started && !paused && remaining > 0;
+
+  useEffect(() => {
+    if (started || drawerOpen) return;
+    const interval = window.setInterval(() => {
+      setTimerStyle((current) => {
+        const currentIndex = AUTOPLAY_STYLES.indexOf(current);
+        return AUTOPLAY_STYLES[(currentIndex + 1) % AUTOPLAY_STYLES.length];
+      });
+    }, AUTOPLAY_INTERVAL);
+    return () => window.clearInterval(interval);
+  }, [started, drawerOpen]);
+
+  useEffect(() => {
+    if (started) return;
+    const updateGalleryClock = () => setGalleryNow(Date.now());
+    updateGalleryClock();
+    const interval = window.setInterval(updateGalleryClock, 1000);
+    return () => window.clearInterval(interval);
+  }, [started]);
 
   useEffect(() => {
     if (!wakeEnabled || !wakeSupported || !timerIsActive) {
@@ -223,6 +275,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       setDuration(stored.duration);
       setTimerTitle(stored.title || "Timer");
+      setTimerStyle(isTimerStyleId(stored.styleId) ? stored.styleId : DEFAULT_TIMER_STYLE);
       setTimerToken(token);
       setMinutes(Math.max(1, Math.round(stored.duration / 60)));
       setRemaining(nextRemaining);
@@ -262,6 +315,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       id: timerId,
       ...(timerToken ? { token: timerToken } : {}),
       title: timerTitle.trim() || "Timer",
+      styleId: timerStyle,
       duration,
       remaining,
       endAt,
@@ -269,7 +323,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       createdAt,
     };
     window.localStorage.setItem(`${TIMER_KEY_PREFIX}${timerId}`, JSON.stringify(stored));
-  }, [started, timerId, loadedTimerId, timerToken, timerTitle, duration, remaining, endAt, paused, createdAt]);
+  }, [started, timerId, loadedTimerId, timerToken, timerTitle, timerStyle, duration, remaining, endAt, paused, createdAt]);
 
   useEffect(() => {
     if (!started || remaining !== 0 || !timerId || notificationPermission !== "granted") return;
@@ -306,6 +360,42 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const cells = useMemo(() => Array.from({ length: totalCells }), [totalCells]);
   const remoteTitles = loaderData?.recentTitles ?? [];
   const recentTitles = useMemo(() => [...new Set([...localTitles, ...remoteTitles])].slice(0, 8), [localTitles, remoteTitles]);
+  const remoteRunningTimers = loaderData?.runningTimers ?? [];
+  const runningTimers = useMemo(() => {
+    const timers = [...localRunningTimers, ...remoteRunningTimers];
+    return [...new Map(timers.map((timer) => [timer.id, timer])).values()].sort((a, b) => a.endAt - b.endAt);
+  }, [localRunningTimers, remoteRunningTimers]);
+  const visibleRunningTimers = useMemo(
+    () => galleryNow === 0 ? runningTimers : runningTimers.filter((timer) => timer.endAt > galleryNow),
+    [galleryNow, runningTimers],
+  );
+  const selectedStyle = TIMER_STYLES[timerStyle];
+  const selectedGroup = STYLE_GROUPS.find((group) => group.styles.includes(timerStyle))?.id;
+  const currentUser = loaderData?.user ?? null;
+
+  const chooseTimerStyle = (styleId: TimerStyleId) => {
+    setTimerStyle(styleId);
+    setDrawerOpen(true);
+  };
+
+  const moveTimerStyle = (direction: -1 | 1) => {
+    setTimerStyle((current) => {
+      const currentIndex = AUTOPLAY_STYLES.indexOf(current);
+      return AUTOPLAY_STYLES[(currentIndex + direction + AUTOPLAY_STYLES.length) % AUTOPLAY_STYLES.length];
+    });
+  };
+
+  const handleStyleGalleryKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      moveTimerStyle(event.key === "ArrowLeft" ? -1 : 1);
+      return;
+    }
+    if ((event.key === "Enter" || event.key === " ") && event.target === event.currentTarget) {
+      event.preventDefault();
+      setDrawerOpen(true);
+    }
+  };
 
   const start = () => {
     const seconds = Math.max(1, Math.round(minutes)) * 60;
@@ -316,6 +406,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       id,
       token,
       title: timerTitle.trim() || "Timer",
+      styleId: timerStyle,
       duration: seconds,
       remaining: seconds,
       endAt: now + seconds * 1000,
@@ -333,7 +424,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setTimerToken(token);
     setDrawerOpen(false);
     navigate(`/timer/${id}`);
-    void registerRemoteTimer({ id, token, title: stored.title || "Timer", duration: seconds, endAt: stored.endAt! });
+    void registerRemoteTimer({ id, token, title: stored.title || "Timer", styleId: timerStyle, duration: seconds, endAt: stored.endAt! });
   };
 
   const togglePause = () => {
@@ -394,7 +485,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         await fetch("/api/timers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: timerId, token: timerToken, title: timerTitle.trim() || "Timer", duration, endAt, subscription: subscriptionData }),
+          body: JSON.stringify({ id: timerId, token: timerToken, title: timerTitle.trim() || "Timer", styleId: timerStyle, duration, endAt, subscription: subscriptionData }),
         });
       }
     } catch {
@@ -404,31 +495,58 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   if (!started) {
     return (
-      <main className="setup-shell setup-shell-simple">
-        <section className="setup-card setup-card-simple">
-          <div className="setup-nav"><div className="brand"><span className="brand-carrot">◆</span> RABBIT TIMER</div><Link to="/account">Account</Link></div>
-          <div className="quick-timer">
-            <div className="quick-rabbit" aria-hidden="true"><div className="showcase-sprite sprite-frame-1" /></div>
-            <div className="quick-copy">
-              <p className="quick-label">START A TIMER</p>
-              <h1>How long do<br />you need?</h1>
-            </div>
-            <div className="quick-picker" aria-label="Timer duration">
-              <button type="button" onClick={() => setMinutes((value) => Math.max(1, value - 1))} aria-label="Subtract one minute">−</button>
-              <button className="quick-time" type="button" onClick={() => setDrawerOpen(true)} aria-label={`Edit timer duration, currently ${minutes} minutes`}>
-                <strong>{minutes}</strong><span>{minutes === 1 ? "MINUTE" : "MINUTES"}</span><small>Tap to edit</small>
-              </button>
-              <button type="button" onClick={() => setMinutes((value) => Math.min(180, value + 1))} aria-label="Add one minute">+</button>
-            </div>
-          </div>
-          <button className="start-button quick-start" onClick={() => setDrawerOpen(true)}><span><small>NEXT</small>Continue</span><span aria-hidden="true">→</span></button>
-        </section>
+      <main className={`style-gallery-shell style-gallery-${timerStyle}`} style={{ "--gallery-background": selectedStyle.previewBackground } as React.CSSProperties}>
+        <div className="style-gallery-hero" aria-hidden="true">
+          {timerStyle === "rabbit-carrot" ? <div className="style-gallery-animated-sprite rabbit-eating-preview" />
+            : timerStyle === "rabbit-painter" ? <div className="style-gallery-animated-sprite rabbit-painting-preview" />
+              : timerStyle === "blue-mood" || timerStyle === "green-sleep" ? <div className={`mood-sprite-preview ${timerStyle}`}>
+                <img src={selectedStyle.heroImage} alt="" />
+                <span className="mood-expression-sprite" />
+              </div>
+                : <img src={selectedStyle.heroImage} alt="" />}
+        </div>
 
-        <aside className="rabbit-showcase" aria-hidden="true">
-          <div className="sun" />
-          <div className="showcase-sprite sprite-frame-1" />
-          <p>ONE BITE<br />AT A TIME.</p>
-        </aside>
+        <header className="style-gallery-topbar">
+          <div className="style-gallery-mark" aria-label="Rabbit Timer"><img src="/images/icons/icon-192.png" alt="" /></div>
+          <nav className="style-gallery-menus" aria-label="Timer and account menus">
+            <details className="gallery-menu running-menu">
+              <summary aria-label={`${visibleRunningTimers.length} active timers`} title="Active timers"><span aria-hidden="true">◷</span>{visibleRunningTimers.length > 0 && <b>{visibleRunningTimers.length}</b>}</summary>
+              <div className="gallery-dropdown">
+                <strong>RUNNING</strong>
+                {visibleRunningTimers.length === 0 ? <p>NO ACTIVE TIMERS</p> : visibleRunningTimers.map((timer) => <Link key={timer.id} to={`/timer/${timer.id}`}><span><em>{timer.title}</em><time>{galleryNow === 0 ? "--:--" : formatTime(Math.max(0, Math.ceil((timer.endAt - galleryNow) / 1000)))}</time></span><i>→</i></Link>)}
+              </div>
+            </details>
+            <details className="gallery-menu account-menu">
+              <summary className="gallery-avatar" aria-label="Account menu" title="Account">{currentUser ? getInitials(currentUser.name, currentUser.email) : "?"}</summary>
+              <div className="gallery-dropdown">
+                {currentUser && <strong>{currentUser.name || currentUser.email}</strong>}
+                <Link to="/account">ACCOUNT <i>→</i></Link>
+                {currentUser && <Form action="/logout" method="post"><button type="submit">SIGN OUT <i>×</i></button></Form>}
+              </div>
+            </details>
+          </nav>
+        </header>
+
+        <section className="style-gallery-picker" aria-label="Choose a timer style. Use left and right arrow keys to browse." tabIndex={0} onKeyDown={handleStyleGalleryKeyDown}>
+          {STYLE_GROUPS.map((group) => {
+            const groupStyleId = group.styles.includes(timerStyle) ? timerStyle : group.styles[0];
+            const groupStyle = TIMER_STYLES[groupStyleId];
+            const visibleStyles = group.styles.slice(0, 3);
+            const hiddenCount = group.styles.length - visibleStyles.length;
+            return <div key={group.id} className={`style-choice-group ${selectedGroup === group.id ? "is-selected" : ""}`}>
+              <button type="button" className="style-choice-main" onClick={() => chooseTimerStyle(groupStyleId)} aria-label={`Use ${groupStyle.label}`} title={groupStyle.label}>
+                <img src={groupStyleId === "rabbit-carrot" ? TIMER_STYLES["rabbit-carrot"].heroImage : groupStyle.thumbnail} alt="" />
+              </button>
+              <div className="style-choice-variants">
+                {visibleStyles.map((styleId) => {
+                  const style = TIMER_STYLES[styleId];
+                  return <button key={styleId} type="button" className={timerStyle === styleId ? "is-selected" : ""} onClick={() => chooseTimerStyle(styleId)} aria-label={`Use ${style.label}`} title={style.label}><img src={styleId === "rabbit-carrot" ? style.heroImage : style.thumbnail} alt="" /></button>;
+                })}
+                {hiddenCount > 0 && <button type="button" className="style-choice-more" onClick={() => chooseTimerStyle(group.styles[3])} aria-label={`${hiddenCount} more timer styles`}>+{hiddenCount}</button>}
+              </div>
+            </div>;
+          })}
+        </section>
 
         <Drawer.Root open={drawerOpen} onOpenChange={setDrawerOpen} shouldScaleBackground={false}>
           <Drawer.Portal>
@@ -445,8 +563,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   <button onClick={() => setMinutes((value) => Math.min(180, value + 1))} aria-label="Add one minute">+</button>
                 </div>
 
-                <label className="title-input drawer-title-input"><span>TIMER NAME <i>OPTIONAL</i></span><input value={timerTitle} maxLength={48} onChange={(event) => setTimerTitle(event.target.value)} placeholder="e.g. Go to sleep" /></label>
-                {recentTitles.length > 0 && <div className="recent-titles"><span>USE AGAIN</span><div>{recentTitles.map((title) => <button type="button" key={title} className={timerTitle === title ? "selected" : ""} onClick={() => setTimerTitle(title)}>{title}</button>)}</div></div>}
+                <div className="timer-identity-row">
+                  <label className="title-input drawer-title-input"><span>TIMER NAME <i>OPTIONAL</i></span><input value={timerTitle} maxLength={48} onChange={(event) => setTimerTitle(event.target.value)} placeholder="e.g. Go to sleep" /></label>
+                  <TimerStyleSelect value={timerStyle} onChange={setTimerStyle} />
+                </div>
+                {recentTitles.length > 0 && <div className="recent-titles"><span>PREVIOUS TIMER NAMES</span><div>{recentTitles.map((title) => <button type="button" key={title} className={timerTitle === title ? "selected" : ""} onClick={() => setTimerTitle(title)}>{title}</button>)}</div></div>}
 
                 <div className="focus-options drawer-options">
                   <button type="button" className={wakeEnabled ? "enabled" : ""} onClick={toggleWakeLock} disabled={!wakeSupported}><span aria-hidden="true">☀</span><strong>Keep screen on</strong><small>{!wakeSupported ? "Unavailable" : wakeEnabled ? "Enabled" : "Disabled"}</small></button>
@@ -462,6 +583,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   const isFinished = remaining === 0;
+
+  if (timerStyle === "blue-mood" || timerStyle === "green-sleep") {
+    return <BlueMoodTimer variant={timerStyle === "green-sleep" ? "green-sleep" : "blue"} title={timerTitle.trim() || "Timer"} time={formatTime(remaining)} progress={duration > 0 ? (duration - remaining) / duration : 0} paused={paused} finished={isFinished} wakeActive={wakeActive} wakeSupported={wakeSupported} notificationEnabled={notificationPermission === "granted"} notificationsAvailable={notificationPermission !== "denied" && notificationPermission !== "unsupported"} onToggleWake={toggleWakeLock} onToggleNotifications={enableNotifications} onTogglePause={togglePause} onReset={reset} />;
+  }
+
+  if (timerStyle === "rabbit-painter") {
+    return <RabbitPainterTimer title={timerTitle.trim() || "Timer"} time={formatTime(remaining)} duration={duration} remaining={remaining} paused={paused} finished={isFinished} wakeActive={wakeActive} wakeSupported={wakeSupported} notificationEnabled={notificationPermission === "granted"} notificationsAvailable={notificationPermission !== "denied" && notificationPermission !== "unsupported"} onToggleWake={toggleWakeLock} onToggleNotifications={enableNotifications} onTogglePause={togglePause} onReset={reset} />;
+  }
 
   return (
     <main className={`timer-shell ${isFinished ? "is-finished" : ""}`}>

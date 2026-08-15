@@ -1,10 +1,12 @@
 import { MongoClient, type Collection, type ObjectId, type WithId } from "mongodb";
 import type { PushSubscriptionData } from "./backend.types";
+import type { TimerStyleId } from "../timer-styles";
 
 export type TimerDocument = {
   timerId: string;
   tokenHash: string;
   title: string;
+  styleId?: TimerStyleId;
   duration: number;
   endAt: Date;
   status: "running" | "paused" | "finished" | "cancelled";

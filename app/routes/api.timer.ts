@@ -4,6 +4,7 @@ import { getTimersCollection } from "../services/mongo.server";
 import { cancelTimerJob, scheduleTimerJob } from "../services/queue.server";
 import { readBearerToken, timerTokenMatches } from "../services/timer-auth.server";
 import { getUserId } from "../services/auth.server";
+import { DEFAULT_TIMER_STYLE } from "../timer-styles";
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   const userId = await getUserId(request);
@@ -12,7 +13,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   if (!timer) return data({ error: "Not found" }, { status: 404 });
   const remaining = timer.status === "running" ? Math.max(0, Math.ceil((timer.endAt.getTime() - Date.now()) / 1000)) : timer.status === "paused" ? timer.pausedRemaining || 0 : 0;
   return {
-    id: timer.timerId, title: timer.title, duration: timer.duration,
+    id: timer.timerId, title: timer.title, styleId: timer.styleId || DEFAULT_TIMER_STYLE, duration: timer.duration,
     remaining, endAt: timer.endAt.getTime(), status: remaining === 0 ? "finished" : timer.status,
     createdAt: timer.createdAt.getTime(),
   };

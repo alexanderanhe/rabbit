@@ -1,4 +1,4 @@
-const CACHE_NAME = "carrot-timer-v13";
+const CACHE_NAME = "rabbit-timer-v16";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
@@ -9,10 +9,19 @@ const APP_SHELL = [
   "/images/sprites/rabbit-eat-1.png",
   "/images/sprites/rabbit-eat-2.png",
   "/images/sprites/rabbit-carrot.png",
+  "/images/sprites/blue-mood-sprite.webp",
+  "/images/sprites/green-sleep-sprite.webp",
   "/images/sprites/finish-line.webp",
   "/images/sprites/bunny-celebrate-1.webp",
   "/images/sprites/bunny-celebrate-2.webp",
+  "/images/timer-styles/blue-mood-housing.webp",
+  "/images/timer-styles/blue-mood-thumbnail.webp",
+  "/images/timer-styles/green-sleep-housing.webp",
+  "/images/timer-styles/green-sleep-thumbnail.webp",
+  "/images/sprites/2212930E-A0C9-4214-B4A0-47D163A34245.PNG",
+  "/images/sprites/B8C49390-EAC7-4C3D-8746-1CE186082C65.PNG",
 ];
+const STATIC_PATHS = new Set(APP_SHELL.filter((path) => path !== "/"));
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -40,15 +49,13 @@ self.addEventListener("fetch", (event) => {
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put("/", copy));
-          return response;
-        })
         .catch(() => caches.match("/")),
     );
     return;
   }
+
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin || !STATIC_PATHS.has(url.pathname)) return;
 
   event.respondWith(
     caches.match(event.request).then((cached) => {

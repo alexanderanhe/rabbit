@@ -5,10 +5,11 @@ import { getTimersCollection } from "../services/mongo.server";
 import { scheduleTimerJob } from "../services/queue.server";
 import { hashTimerToken } from "../services/timer-auth.server";
 import { getUserId } from "../services/auth.server";
+import { isTimerStyleId } from "../timer-styles";
 
 function isValidPayload(value: Partial<RemoteTimerPayload>): value is RemoteTimerPayload {
   return Boolean(
-    value.id && value.token && value.title && value.duration && value.endAt,
+    value.id && value.token && value.title && value.duration && value.endAt && isTimerStyleId(value.styleId),
   );
 }
 
@@ -28,6 +29,7 @@ export async function action({ request }: Route.ActionArgs) {
       $set: {
         tokenHash: hashTimerToken(payload.token),
         title: payload.title.slice(0, 48),
+        styleId: payload.styleId,
         duration: payload.duration,
         endAt,
         status: "running",

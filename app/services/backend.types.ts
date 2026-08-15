@@ -1,3 +1,5 @@
+import type { TimerStyleId } from "../timer-styles";
+
 export type PushSubscriptionData = {
   endpoint: string;
   expirationTime?: number | null;
@@ -10,5 +12,6 @@ export type RemoteTimerPayload = {
   title: string;
   duration: number;
   endAt: number;
+  styleId: TimerStyleId;
   subscription?: PushSubscriptionData;
 };
