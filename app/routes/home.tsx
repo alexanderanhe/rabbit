@@ -163,6 +163,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [galleryInteractionUntil, setGalleryInteractionUntil] = useState(0);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const galleryPickerRef = useRef<HTMLElement | null>(null);
+  const galleryMenusRef = useRef<HTMLElement | null>(null);
   const finishAudioRef = useRef<HTMLAudioElement | null>(null);
   const finishAudioPlayedRef = useRef(false);
   const oneMinuteAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -466,6 +467,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return () => window.cancelAnimationFrame(frame);
   }, [started, selectedGroup]);
 
+  useEffect(() => {
+    const closeMenusOutside = (event: PointerEvent) => {
+      const container = galleryMenusRef.current;
+      if (!container) return;
+      container.querySelectorAll<HTMLDetailsElement>("details[open]").forEach((menu) => {
+        if (!menu.contains(event.target as Node)) menu.open = false;
+      });
+    };
+    document.addEventListener("pointerdown", closeMenusOutside);
+    return () => document.removeEventListener("pointerdown", closeMenusOutside);
+  }, []);
+
   const chooseTimerStyle = (styleId: TimerStyleId) => {
     setTimerStyle(styleId);
     setDrawerOpen(true);
@@ -613,7 +626,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
         <header className="style-gallery-topbar">
           <div className="style-gallery-mark" aria-label="Rabbit Timer"><img src="/images/icons/icon-192.png" alt="" /></div>
-          <nav className="style-gallery-menus" aria-label="Timer and account menus">
+          <nav ref={galleryMenusRef} className="style-gallery-menus" aria-label="Timer and account menus">
             <details className="gallery-menu running-menu">
               <summary aria-label={`${visibleRunningTimers.length} active timers`} title="Active timers"><span aria-hidden="true"><IoTimeOutline /></span>{visibleRunningTimers.length > 0 && <b>{visibleRunningTimers.length}</b>}</summary>
               <div className="gallery-dropdown">
