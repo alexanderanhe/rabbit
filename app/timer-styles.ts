@@ -24,7 +24,7 @@ export const TIMER_STYLES = {
     label: "Rabbit Painter",
     description: "A rabbit uncovers a pixel-art scene one square at a time.",
     thumbnail: "/images/sprites/B8C49390-EAC7-4C3D-8746-1CE186082C65.PNG",
-    previewBackground: "#777b78",
+    previewBackground: "#f2c75c",
     heroImage: "/images/sprites/B8C49390-EAC7-4C3D-8746-1CE186082C65.PNG",
   },
 } as const;
