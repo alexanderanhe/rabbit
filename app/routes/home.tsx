@@ -589,7 +589,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   if (timerStyle === "rabbit-painter") {
-    return <RabbitPainterTimer title={timerTitle.trim() || "Timer"} time={formatTime(remaining)} duration={duration} remaining={remaining} paused={paused} finished={isFinished} wakeActive={wakeActive} wakeSupported={wakeSupported} notificationEnabled={notificationPermission === "granted"} notificationsAvailable={notificationPermission !== "denied" && notificationPermission !== "unsupported"} onToggleWake={toggleWakeLock} onToggleNotifications={enableNotifications} onTogglePause={togglePause} onReset={reset} />;
+    return <RabbitPainterTimer timerId={timerId || "preview"} title={timerTitle.trim() || "Timer"} time={formatTime(remaining)} duration={duration} remaining={remaining} paused={paused} finished={isFinished} wakeActive={wakeActive} wakeSupported={wakeSupported} notificationEnabled={notificationPermission === "granted"} notificationsAvailable={notificationPermission !== "denied" && notificationPermission !== "unsupported"} onToggleWake={toggleWakeLock} onToggleNotifications={enableNotifications} onTogglePause={togglePause} onReset={reset} />;
   }
 
   return (

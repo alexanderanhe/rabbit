@@ -1,4 +1,4 @@
-const CACHE_NAME = "rabbit-timer-v16";
+const CACHE_NAME = "rabbit-timer-v18";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
@@ -19,7 +19,9 @@ const APP_SHELL = [
   "/images/timer-styles/green-sleep-housing.webp",
   "/images/timer-styles/green-sleep-thumbnail.webp",
   "/images/sprites/2212930E-A0C9-4214-B4A0-47D163A34245.PNG",
-  "/images/sprites/B8C49390-EAC7-4C3D-8746-1CE186082C65.PNG",
+  "/images/sprites/paint-1.webp",
+  "/images/sprites/paint-2.webp",
+  "/images/sprites/paint-3.webp",
 ];
 const STATIC_PATHS = new Set(APP_SHELL.filter((path) => path !== "/"));
 
