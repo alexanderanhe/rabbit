@@ -31,7 +31,7 @@ export const TIMER_STYLES = {
     label: "Cars Race",
     description: "Three cars race down the track and only one wins when time is up.",
     thumbnail: "/images/sprites/cars/mcqueen-run.webp",
-    previewBackground: "#161b3a",
+    previewBackground: "#fffaf0",
     heroImage: "/images/sprites/cars/mcqueen-run.webp",
   },
   "blue-mood": {

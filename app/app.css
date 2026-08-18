@@ -70,7 +70,7 @@ button { color: inherit; }
 .style-gallery-picker::-webkit-scrollbar { display: none; }
 .style-gallery-picker:focus-visible { outline: 4px solid var(--orange); outline-offset: 5px; }
 .style-choice-group { display: grid; flex: 0 0 auto; justify-items: center; gap: 6px; padding: 5px; border: 3px solid transparent; scroll-snap-align: center; }
-.style-choice-group.is-selected { border-color: var(--ink); background: #ffe2a3; }
+.style-choice-group.is-selected { border-color: var(--ink); background: #fffaf0; }
 .style-choice-group button { position: relative; display: grid; place-items: center; padding: 3px; overflow: hidden; border: 2px solid var(--ink); background: var(--pink); cursor: pointer; }
 .style-choice-group button:hover { transform: translateY(-3px); }
 .style-choice-main { width: clamp(82px,9vw,112px); aspect-ratio: 1; }
@@ -89,7 +89,7 @@ button { color: inherit; }
 .style-choice-group button[title="Bear & Honey"] { background: #e8ad52; }
 .style-choice-group button[title="Mouse & Cheese"] { background: #8fcfc5; }
 .style-choice-group button[title="Leo Soccer"] { background: #72c8f2; }
-.style-choice-group button[title="Cars Race"] { background: #161b3a; }
+.style-choice-group button[title="Cars Race"] { background: #f2795c; }
 
 @media (max-width: 620px) {
   .style-gallery-topbar { padding-right: 16px; padding-left: 16px; }
