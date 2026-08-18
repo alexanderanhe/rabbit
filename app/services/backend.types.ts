@@ -13,5 +13,6 @@ export type RemoteTimerPayload = {
   duration: number;
   endAt: number;
   styleId: TimerStyleId;
+  variant?: string;
   subscription?: PushSubscriptionData;
 };

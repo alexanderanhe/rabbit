@@ -5,21 +5,16 @@ const FRAME_SECONDS = 1;
 const FRAMES_PER_CELL = 4;
 const SECONDS_PER_CELL = FRAME_SECONDS * FRAMES_PER_CELL;
 const PAINTING_RATIO = 1275 / 1233;
-const PAINTINGS = [
-  "/images/sprites/paint-1.webp",
-  "/images/sprites/paint-2.webp",
-  "/images/sprites/paint-3.webp",
-  "/images/sprites/paint-4.webp",
-  "/images/sprites/paint-5.webp",
-] as const;
+export const PAINTING_VARIANTS = ["paint-1", "paint-2", "paint-3", "paint-4", "paint-5"] as const;
 
-function selectPainting(timerId: string) {
+function selectPainting(timerId: string, variant?: string) {
+  if (variant && (PAINTING_VARIANTS as readonly string[]).includes(variant)) return `/images/sprites/${variant}.webp`;
   const hash = [...timerId].reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 0);
-  return PAINTINGS[hash % PAINTINGS.length];
+  return `/images/sprites/${PAINTING_VARIANTS[hash % PAINTING_VARIANTS.length]}.webp`;
 }
 
-export function RabbitPainterTimer({ timerId, title, time, duration, remaining, paused, finished, wakeActive, wakeSupported, notificationEnabled, notificationsAvailable, onToggleWake, onToggleNotifications, onTogglePause, onReset }: {
-  timerId: string; title: string; time: string; duration: number; remaining: number; paused: boolean; finished: boolean;
+export function RabbitPainterTimer({ timerId, variant, title, time, duration, remaining, paused, finished, wakeActive, wakeSupported, notificationEnabled, notificationsAvailable, onToggleWake, onToggleNotifications, onTogglePause, onReset }: {
+  timerId: string; variant?: string; title: string; time: string; duration: number; remaining: number; paused: boolean; finished: boolean;
   wakeActive: boolean; wakeSupported: boolean; notificationEnabled: boolean; notificationsAvailable: boolean;
   onToggleWake: () => void; onToggleNotifications: () => void; onTogglePause: () => void; onReset: () => void;
 }) {
@@ -36,7 +31,7 @@ export function RabbitPainterTimer({ timerId, title, time, duration, remaining, 
   const activeColumn = activeCell % columns + 1;
   const activeRow = Math.floor(activeCell / columns) + 1;
   const cells = useMemo(() => Array.from({ length: totalCells }), [totalCells]);
-  const painting = selectPainting(timerId);
+  const painting = selectPainting(timerId, variant);
 
   return <main className="painter-timer-shell">
     <div className="painter-easel">

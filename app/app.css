@@ -89,6 +89,7 @@ button { color: inherit; }
 .style-choice-group button[title="Bear & Honey"] { background: #e8ad52; }
 .style-choice-group button[title="Mouse & Cheese"] { background: #8fcfc5; }
 .style-choice-group button[title="Leo Soccer"] { background: #72c8f2; }
+.style-choice-group button[title="Cars Race"] { background: #161b3a; }
 
 @media (max-width: 620px) {
   .style-gallery-topbar { padding-right: 16px; padding-left: 16px; }
@@ -134,7 +135,7 @@ button { color: inherit; }
   85.001%,100% { background-position: 0 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .rabbit-eating-preview,.animal-eating-preview,.rabbit-painting-preview,.mood-expression-sprite,.leo-gallery-player { animation: none; }
+  .rabbit-eating-preview,.animal-eating-preview,.rabbit-painting-preview,.mood-expression-sprite,.leo-gallery-player,.race-gallery-car { animation: none; }
 }
 
 .setup-shell {
@@ -292,6 +293,72 @@ button { color: inherit; }
 @keyframes leo-run { 0%,49.999% { background-image: url("/images/sprites/leo-run-1.webp"); } 50%,100% { background-image: url("/images/sprites/leo-run-2.webp"); } }
 @keyframes leo-gallery-cross { from { left: 5%; } to { left: 60%; } }
 @keyframes leo-celebrate { 0%,49.999% { background-image: url("/images/sprites/leo-celebrate-1.webp"); } 50%,100% { background-image: url("/images/sprites/leo-celebrate-2.webp"); } }
+
+.race-timer-shell { position: relative; width: 100%; min-height: calc(100svh - min(18svh,140px)); overflow: hidden; background: linear-gradient(#0a0e28 0 56%,#26262b 56% 100%); --race-city-h: 38%; }
+.race-sky { position: absolute; inset: 0; z-index: 0; background-image: radial-gradient(rgba(255,255,255,.5) 1px,transparent 1px); background-position: 0 0,14px 22px; background-size: 46px 46px; opacity: .5; }
+/* The city is a full-height layer (not clipped to --race-city-h) sized tall enough that
+   it still shows through the transparent upper portion of the track segments below it —
+   otherwise that transparent margin would reveal a flat, empty gap instead of skyline. */
+.race-bg-far { position: absolute; inset: 0; z-index: 1; height: 100%; background-repeat: no-repeat; image-rendering: pixelated; transition: background-position 1s linear; will-change: background-position; background-image: url("/images/sprites/cars-city.png"); background-position: var(--race-far-position) top; background-size: auto 72%; opacity: .92; }
+.race-timer-shell.is-paused .race-bg-far { transition: none; }
+/* The track fills essentially all the space below the city skyline down to the bottom
+   of the shell (like a soccer pitch filling the screen below its own backdrop) instead
+   of floating as a small centered strip with dead space above and below it. Because
+   it's a top+bottom stretch rather than a fixed height, this keeps working no matter
+   how tall or short the viewport is — there's nothing to re-tune per breakpoint. */
+.race-track-block { position: absolute; z-index: 2; top: var(--race-city-h); right: 0; bottom: 0; left: 0; overflow: hidden; filter: drop-shadow(0 8px 0 rgba(6,8,18,.3)); }
+/* One continuous flex strip of glued-together track segments: panning it with a single
+   transform (instead of swapping a background-image between segments) means the seam
+   between segments never pops — it scrolls exactly like one long track. */
+.race-track-strip { position: absolute; top: 0; left: 0; display: flex; height: 100%; transition: transform 1s linear; will-change: transform; }
+.race-timer-shell.is-paused .race-track-strip { transition: none; }
+.race-track-seg { flex-shrink: 0; height: 100%; aspect-ratio: 2172 / 724; background-repeat: no-repeat; background-size: contain; image-rendering: pixelated; }
+.race-lanes { position: absolute; z-index: 3; top: var(--race-city-h); right: 0; bottom: 0; left: 0; pointer-events: none; }
+.race-car { position: absolute; left: var(--race-left); background-position: center; background-repeat: no-repeat; background-size: contain; image-rendering: pixelated; transform: translateX(var(--race-offset)); transition: left .9s cubic-bezier(.33,.1,.2,1); width: clamp(110px,15vmin,210px); }
+.race-timer-shell.is-paused .race-car { transition: none; }
+/* Depth order: the "back" lane is farthest from the camera and must always render
+   underneath "mid", which renders underneath "front" — otherwise a farther car can
+   visually pop in front of a nearer one when they get close together. */
+.race-lane-back { z-index: 1; bottom: 24%; }
+.race-lane-mid { z-index: 2; bottom: 16%; }
+.race-lane-front { z-index: 3; bottom: 8%; }
+.race-car-mcqueen { background-image: url("/images/sprites/cars/mcqueen-run.webp"); aspect-ratio: 1061 / 310; filter: drop-shadow(3px 5px 0 rgba(0,0,0,.32)); }
+.race-car-chick { background-image: url("/images/sprites/cars/chick-run.webp"); aspect-ratio: 1001 / 300; filter: drop-shadow(3px 5px 0 rgba(0,0,0,.32)); }
+.race-car-king { background-image: url("/images/sprites/cars/king-run.webp"); aspect-ratio: 1071 / 309; filter: drop-shadow(3px 5px 0 rgba(0,0,0,.32)); }
+.race-car.is-trailing { opacity: .5; filter: grayscale(.4) drop-shadow(3px 5px 0 rgba(0,0,0,.32)); }
+.race-progress-track { position: fixed; z-index: 6; right: 0; bottom: 0; left: 0; min-height: min(18svh,140px); display: flex; align-items: center; gap: 16px; padding: 10px max(18px,env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)); background: linear-gradient(#151a2c,#0a0c16); border-top: 3px solid #0c0f26; }
+.race-progress-main { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 8px; min-width: 0; }
+.race-progress-head { display: flex; justify-content: space-between; font-size: 8px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.55); }
+.race-progress-line { position: relative; height: 30px; border: 2px solid #0c0f26; background: rgba(255,255,255,.08); box-shadow: inset 0 2px 4px rgba(0,0,0,.45); }
+.race-progress-finish { position: absolute; top: 50%; right: 2px; transform: translate(50%,-50%); font-size: 16px; line-height: 1; }
+.race-progress-dot { position: absolute; top: 50%; width: 13px; height: 13px; margin-left: -6.5px; margin-top: -6.5px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,.4); transition: left .9s cubic-bezier(.33,.1,.2,1),top .5s ease; }
+.race-timer-shell.is-paused .race-progress-dot { transition: none; }
+.race-progress-dot-chick { background: #4caf50; top: 24%; }
+.race-progress-dot-mcqueen { background: #e2432c; top: 50%; }
+.race-progress-dot-king { background: #2f6fed; top: 76%; }
+.race-status { position: fixed; z-index: 5; top: max(16px,env(safe-area-inset-top)); left: max(16px,env(safe-area-inset-left)); display: grid; gap: 4px; min-width: min(290px,calc(100vw - 32px)); padding: 12px 16px; border: 3px solid #0c0f26; background: rgba(255,250,240,.92); box-shadow: 6px 6px 0 #0c0f26; }.race-status strong { overflow: hidden; font-size: 9px; letter-spacing: .12em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }.race-status time { color: #e2432c; font-size: clamp(34px,5vw,62px); font-weight: 900; line-height: .9; font-variant-numeric: tabular-nums; }.race-status small { color: #0c0f26; font-size: 7px; font-weight: 900; letter-spacing: .1em; }
+.race-progress-controls { position: static; z-index: auto; flex-shrink: 0; background: rgba(255,255,255,.06); }
+.race-winner-reveal { position: fixed; z-index: 4; inset: 0; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 50% 40%,rgba(10,14,30,.4),rgba(5,7,18,.86) 78%); animation: race-winner-fade .4s ease both; }
+.race-winner-flags { position: absolute; inset: 0; background-image: repeating-linear-gradient(45deg,#fff 0 18px,#111 18px 36px); background-size: 36px 36px; opacity: .07; pointer-events: none; }
+.race-winner-card { position: relative; z-index: 1; display: grid; justify-items: center; gap: 14px; width: min(88vw,420px); padding: 28px 22px 22px; border: 4px solid #fff; background: linear-gradient(#fffaf0,#ffe2a3); box-shadow: 9px 9px 0 rgba(0,0,0,.42); text-align: center; animation: race-winner-pop .5s cubic-bezier(.2,1.8,.4,1) both; }
+.race-winner-front { display: block; width: min(70vw,300px); background-position: center; background-repeat: no-repeat; background-size: contain; image-rendering: pixelated; filter: drop-shadow(6px 8px 0 rgba(33,29,26,.25)); }
+.race-winner-card.race-winner-mcqueen .race-winner-front { background-image: url("/images/sprites/cars/mcqueen-front.webp"); aspect-ratio: 418 / 297; }
+.race-winner-card.race-winner-chick .race-winner-front { background-image: url("/images/sprites/cars/chick-front.webp"); aspect-ratio: 410 / 301; }
+.race-winner-card.race-winner-king .race-winner-front { background-image: url("/images/sprites/cars/king-front.webp"); aspect-ratio: 419 / 324; }
+.race-winner-card strong { font-size: clamp(13px,2.4vw,18px); font-weight: 900; letter-spacing: .05em; color: #161b3a; text-transform: uppercase; }
+.race-gallery-preview { position: relative; width: min(82vw,900px); aspect-ratio: 16 / 9; overflow: hidden; background: linear-gradient(#0a0e28 0 55%,#26262b 55% 100%); filter: drop-shadow(12px 16px 0 rgba(33,29,26,.14)); }
+.race-gallery-city { position: absolute; inset: 0; background: url("/images/sprites/cars-city.png") left top / auto 60% no-repeat; image-rendering: pixelated; }
+.race-gallery-track { position: absolute; inset: 0; background: url("/images/sprites/cars-pista.webp") left bottom / auto 82% no-repeat; image-rendering: pixelated; }
+.race-gallery-car { position: absolute; left: -32%; background-position: center; background-repeat: no-repeat; background-size: contain; image-rendering: pixelated; animation: race-gallery-cross 4.5s linear infinite; }
+/* Lane (depth) is independent of which car sprite fills it, so McQueen (red) can always
+   sit in the middle lane while still sharing this vertical-spread/size/timing logic. */
+.race-gallery-lane-back { z-index: 1; bottom: 17%; width: min(22%,170px); animation-delay: 0s; }
+.race-gallery-lane-mid { z-index: 2; bottom: 11%; width: min(25%,190px); animation-delay: .6s; }
+.race-gallery-lane-front { z-index: 3; bottom: 5%; width: min(28%,210px); animation-delay: 1.2s; }
+@keyframes race-gallery-cross { from { left: -32%; } to { left: 106%; } }
+@keyframes race-winner-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes race-winner-pop { 0% { opacity: 0; transform: scale(.7) rotate(-4deg); } 100% { opacity: 1; transform: scale(1) rotate(0); } }
+
 .painter-timer-shell { position: relative; display: grid; place-items: center; width: 100%; min-height: 100svh; padding: max(112px,calc(env(safe-area-inset-top) + 94px)) clamp(22px,5vw,72px) max(128px,calc(env(safe-area-inset-bottom) + 112px)); overflow: hidden; background-color: #f2c75c; background-image: radial-gradient(rgba(33,29,26,.14) 1px,transparent 1px); background-size: 9px 9px; }
 .painter-easel { position: relative; width: min(72vw,calc(100svh - 260px),860px); transform: translateY(-3%); }
 .painter-easel::before,.painter-easel::after { content: ""; position: absolute; z-index: 0; top: 91%; width: 7%; height: 25%; border: 2px solid #613613; background: linear-gradient(90deg,#804719,#c27a32 45%,#8b4b19); box-shadow: 4px 5px 0 rgba(33,29,26,.18); transform-origin: top; }
@@ -371,6 +438,13 @@ button { color: inherit; }
   .leo-sequence-goal { right: -2vw; width: clamp(135px,40vw,220px); }
   .leo-status { min-width: 190px; }
   .leo-audio-toggle { width: 46px; font-size: 20px; }
+  .race-status { min-width: 190px; }
+  .race-winner-card { width: 92vw; padding: 22px 16px 18px; }
+  .race-winner-front { width: min(78vw,280px); }
+  /* Narrow/tall (mobile) screens: the control buttons no longer fit beside the progress
+     line without squeezing it to a sliver, so stack the line above the buttons. */
+  .race-progress-track { flex-direction: column; align-items: stretch; gap: 10px; }
+  .race-progress-controls { justify-content: center; }
 }
 
-@media (prefers-reduced-motion: reduce) { .grid-sprite.active, .celebration-sprite, .timeout-overlay, .timeout-card,.leo-running-player,.leo-celebration { animation: none; } .leo-running-player,.leo-field-far,.leo-field-principal,.leo-sequence-goal { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .grid-sprite.active, .celebration-sprite, .timeout-overlay, .timeout-card,.leo-running-player,.leo-celebration { animation: none; } .leo-running-player,.leo-field-far,.leo-field-principal,.leo-sequence-goal { transition: none; } .race-car,.race-winner-card,.race-winner-reveal { animation: none; } .race-car,.race-bg-far,.race-bg-near { transition: none; } }

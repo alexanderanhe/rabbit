@@ -9,8 +9,9 @@ import { getCurrentUser } from "../services/auth.server";
 import { getTimersCollection } from "../services/mongo.server";
 import { TimerStyleSelect } from "../components/timer-style-select";
 import { BlueMoodTimer } from "../components/blue-mood-timer";
-import { RabbitPainterTimer } from "../components/rabbit-painter-timer";
+import { RabbitPainterTimer, PAINTING_VARIANTS } from "../components/rabbit-painter-timer";
 import { LeoSoccerTimer } from "../components/leo-soccer-timer";
+import { CarsRaceTimer, CAR_VARIANTS } from "../components/cars-race-timer";
 import { DEFAULT_TIMER_STYLE, isTimerStyleId, TIMER_STYLES, type TimerStyleId } from "../timer-styles";
 
 type GridLayout = { columns: number; rows: number };
@@ -19,6 +20,7 @@ type StoredTimer = {
   token?: string;
   title?: string;
   styleId?: TimerStyleId;
+  variant?: string;
   duration: number;
   remaining: number;
   endAt: number | null;
@@ -29,6 +31,7 @@ type ActiveTimerSummary = { id: string; title: string; endAt: number };
 
 const STYLE_GROUPS: Array<{ id: string; styles: TimerStyleId[] }> = [
   { id: "animals", styles: ["rabbit-carrot", "bear-honey", "mouse-cheese"] },
+  { id: "cars", styles: ["cars-race"] },
   { id: "leo", styles: ["leo-soccer"] },
   { id: "faces", styles: ["blue-mood", "green-sleep"] },
   { id: "painter", styles: ["rabbit-painter"] },
@@ -40,6 +43,38 @@ const AUTOPLAY_STYLES = STYLE_GROUPS.flatMap((group) => group.styles);
 const STYLES_WITH_OWN_FINISH_AUDIO: TimerStyleId[] = ["leo-soccer", "blue-mood", "green-sleep"];
 const AUTOPLAY_INTERVAL = 5000;
 const AUTOPLAY_IDLE_DELAY = 60_000;
+// Styles that need a persisted per-timer "variant" (e.g. which painting, which car wins),
+// chosen randomly at creation time and rotated fairly with a shuffle-bag so the same
+// option never repeats back-to-back and every option shows up evenly over time.
+const STYLE_VARIANT_OPTIONS: Partial<Record<TimerStyleId, readonly string[]>> = {
+  "rabbit-painter": PAINTING_VARIANTS,
+  "cars-race": CAR_VARIANTS,
+};
+const VARIANT_BAG_KEY_PREFIX = "carrot-timer:variant-bag:";
+
+function pickVariant(styleId: TimerStyleId): string | undefined {
+  const options = STYLE_VARIANT_OPTIONS[styleId];
+  if (!options || options.length === 0) return undefined;
+  const key = `${VARIANT_BAG_KEY_PREFIX}${styleId}`;
+  let state: { bag?: string[]; last?: string } = {};
+  try { state = JSON.parse(window.localStorage.getItem(key) || "null") || {}; } catch { state = {}; }
+  if (!Array.isArray(state.bag) || state.bag.length === 0) {
+    const bag = [...options];
+    for (let i = bag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+    if (state.last && bag.length > 1 && bag[0] === state.last) {
+      const swapWith = 1 + Math.floor(Math.random() * (bag.length - 1));
+      [bag[0], bag[swapWith]] = [bag[swapWith], bag[0]];
+    }
+    state.bag = bag;
+  }
+  const picked = state.bag.shift() as string;
+  state.last = picked;
+  window.localStorage.setItem(key, JSON.stringify(state));
+  return picked;
+}
 
 const DEFAULT_GRID: GridLayout = { columns: 6, rows: 7 };
 const TIMER_KEY_PREFIX = "carrot-timer:";
@@ -141,6 +176,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const { timerId } = useParams();
   const [timerTitle, setTimerTitle] = useState("");
   const [timerStyle, setTimerStyle] = useState<TimerStyleId>(DEFAULT_TIMER_STYLE);
+  const [timerVariant, setTimerVariant] = useState<string | undefined>(undefined);
   const [minutes, setMinutes] = useState(5);
   const [duration, setDuration] = useState(300);
   const [remaining, setRemaining] = useState(300);
@@ -359,6 +395,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       setDuration(stored.duration);
       setTimerTitle(stored.title || "Timer");
       setTimerStyle(isTimerStyleId(stored.styleId) ? stored.styleId : DEFAULT_TIMER_STYLE);
+      setTimerVariant(stored.variant);
       setTimerToken(token);
       setMinutes(Math.max(1, Math.round(stored.duration / 60)));
       setRemaining(nextRemaining);
@@ -399,6 +436,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       ...(timerToken ? { token: timerToken } : {}),
       title: timerTitle.trim() || "Timer",
       styleId: timerStyle,
+      ...(timerVariant ? { variant: timerVariant } : {}),
       duration,
       remaining,
       endAt,
@@ -406,7 +444,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       createdAt,
     };
     window.localStorage.setItem(`${TIMER_KEY_PREFIX}${timerId}`, JSON.stringify(stored));
-  }, [started, timerId, loadedTimerId, timerToken, timerTitle, timerStyle, duration, remaining, endAt, paused, createdAt]);
+  }, [started, timerId, loadedTimerId, timerToken, timerTitle, timerStyle, timerVariant, duration, remaining, endAt, paused, createdAt]);
 
   useEffect(() => {
     if (!started || remaining !== 0 || !timerId || notificationPermission !== "granted") return;
@@ -518,11 +556,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const id = nanoid(10);
     const token = nanoid(32);
     const now = Date.now();
+    const variant = pickVariant(timerStyle);
     const stored: StoredTimer = {
       id,
       token,
       title: timerTitle.trim() || "Timer",
       styleId: timerStyle,
+      ...(variant ? { variant } : {}),
       duration: seconds,
       remaining: seconds,
       endAt: now + seconds * 1000,
@@ -538,9 +578,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setCreatedAt(now);
     setLoadedTimerId(id);
     setTimerToken(token);
+    setTimerVariant(variant);
     setDrawerOpen(false);
     navigate(`/timer/${id}`);
-    void registerRemoteTimer({ id, token, title: stored.title || "Timer", styleId: timerStyle, duration: seconds, endAt: stored.endAt! });
+    void registerRemoteTimer({ id, token, title: stored.title || "Timer", styleId: timerStyle, ...(variant ? { variant } : {}), duration: seconds, endAt: stored.endAt! });
   };
 
   const togglePause = () => {
@@ -566,6 +607,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setCreatedAt(null);
     setLoadedTimerId(null);
     setTimerToken(null);
+    setTimerVariant(undefined);
     navigate("/");
   };
 
@@ -601,7 +643,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         await fetch("/api/timers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: timerId, token: timerToken, title: timerTitle.trim() || "Timer", styleId: timerStyle, duration, endAt, subscription: subscriptionData }),
+          body: JSON.stringify({ id: timerId, token: timerToken, title: timerTitle.trim() || "Timer", styleId: timerStyle, ...(timerVariant ? { variant: timerVariant } : {}), duration, endAt, subscription: subscriptionData }),
         });
       }
     } catch {
@@ -615,6 +657,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="style-gallery-hero" aria-hidden="true">
           {timerStyle === "rabbit-carrot" ? <div className="style-gallery-animated-sprite rabbit-eating-preview" />
             : timerStyle === "bear-honey" || timerStyle === "mouse-cheese" ? <div className={`style-gallery-animated-sprite animal-eating-preview ${timerStyle}`} />
+            : timerStyle === "cars-race" ? <div className="race-gallery-preview"><span className="race-gallery-city" /><span className="race-gallery-track" /><span className="race-gallery-car race-gallery-lane-back race-car-chick" /><span className="race-gallery-car race-gallery-lane-mid race-car-mcqueen" /><span className="race-gallery-car race-gallery-lane-front race-car-king" /></div>
             : timerStyle === "leo-soccer" ? <div className="leo-gallery-preview"><span className="leo-gallery-field" /><span className="leo-gallery-player" /></div>
             : timerStyle === "rabbit-painter" ? <div className="style-gallery-animated-sprite rabbit-painting-preview" />
               : timerStyle === "blue-mood" || timerStyle === "green-sleep" ? <div className={`mood-sprite-preview ${timerStyle}`}>
@@ -707,11 +750,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   if (timerStyle === "rabbit-painter") {
-    return <RabbitPainterTimer timerId={timerId || "preview"} title={timerTitle.trim() || "Timer"} time={formatTime(remaining)} duration={duration} remaining={remaining} paused={paused} finished={isFinished} wakeActive={wakeActive} wakeSupported={wakeSupported} notificationEnabled={notificationPermission === "granted"} notificationsAvailable={notificationPermission !== "denied" && notificationPermission !== "unsupported"} onToggleWake={toggleWakeLock} onToggleNotifications={enableNotifications} onTogglePause={togglePause} onReset={reset} />;
+    return <RabbitPainterTimer timerId={timerId || "preview"} variant={timerVariant} title={timerTitle.trim() || "Timer"} time={formatTime(remaining)} duration={duration} remaining={remaining} paused={paused} finished={isFinished} wakeActive={wakeActive} wakeSupported={wakeSupported} notificationEnabled={notificationPermission === "granted"} notificationsAvailable={notificationPermission !== "denied" && notificationPermission !== "unsupported"} onToggleWake={toggleWakeLock} onToggleNotifications={enableNotifications} onTogglePause={togglePause} onReset={reset} />;
   }
 
   if (timerStyle === "leo-soccer") {
     return <LeoSoccerTimer title={timerTitle.trim() || "Timer"} time={formatTime(remaining)} duration={duration} remaining={remaining} paused={paused} finished={isFinished} wakeActive={wakeActive} wakeSupported={wakeSupported} notificationEnabled={notificationPermission === "granted"} notificationsAvailable={notificationPermission !== "denied" && notificationPermission !== "unsupported"} onToggleWake={toggleWakeLock} onToggleNotifications={enableNotifications} onTogglePause={togglePause} onReset={reset} />;
+  }
+
+  if (timerStyle === "cars-race") {
+    return <CarsRaceTimer variant={timerVariant} title={timerTitle.trim() || "Timer"} time={formatTime(remaining)} duration={duration} remaining={remaining} paused={paused} finished={isFinished} wakeActive={wakeActive} wakeSupported={wakeSupported} notificationEnabled={notificationPermission === "granted"} notificationsAvailable={notificationPermission !== "denied" && notificationPermission !== "unsupported"} onToggleWake={toggleWakeLock} onToggleNotifications={enableNotifications} onTogglePause={togglePause} onReset={reset} />;
   }
 
   return (

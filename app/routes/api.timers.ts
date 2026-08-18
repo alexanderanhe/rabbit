@@ -30,6 +30,7 @@ export async function action({ request }: Route.ActionArgs) {
         tokenHash: hashTimerToken(payload.token),
         title: payload.title.slice(0, 48),
         styleId: payload.styleId,
+        ...(payload.variant ? { variant: payload.variant } : {}),
         duration: payload.duration,
         endAt,
         status: "running",

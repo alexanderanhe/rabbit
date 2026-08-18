@@ -7,6 +7,7 @@ export type TimerDocument = {
   tokenHash: string;
   title: string;
   styleId?: TimerStyleId;
+  variant?: string;
   duration: number;
   endAt: Date;
   status: "running" | "paused" | "finished" | "cancelled";

@@ -27,6 +27,13 @@ export const TIMER_STYLES = {
     previewBackground: "#72c8f2",
     heroImage: "/images/sprites/leo-run-1.webp",
   },
+  "cars-race": {
+    label: "Cars Race",
+    description: "Three cars race down the track and only one wins when time is up.",
+    thumbnail: "/images/sprites/cars/mcqueen-run.webp",
+    previewBackground: "#161b3a",
+    heroImage: "/images/sprites/cars/mcqueen-run.webp",
+  },
   "blue-mood": {
     label: "Blue Mood",
     description: "A full-screen digital face with changing moods.",
